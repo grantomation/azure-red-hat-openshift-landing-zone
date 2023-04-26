@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "spokeVnetName": {
+      "value": "spoke-vnet"
+    },
+    "tags": {
+      "value": {
+          "env": "Dev",
+          "dept": "Black Belt"
+      }
+    },
+    "spokeVnetCidr": {
+      "value": "10.1.0.0/16"
+    },
+    "controlPlaneSubnetName": {
+      "value": "controlplane"
+    },
+    "controlPlaneSubnetCidr": {
+      "value": "10.1.0.0/23"
+    },
+    "computeSubnetName": {
+      "value": "compute"
+    },
+    "computeSubnetCidr": {
+      "value": "10.1.2.0/23"
+    }
+  }
+}

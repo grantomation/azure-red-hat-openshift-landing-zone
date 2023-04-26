@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "fwPrivateIP": {
+      "value": "10.0.0.4"
+    },
+    "fw_pip_name": {
+      "value": "aro-lz-fw-pip"
+    },
+    "fw_pip_sku_type": {
+      "value": "Standard"
+    },
+    "fw_pip_tier_name": {
+      "value": "Regional"
+    },
+    "azfw_name": {
+      "value": "aro-lz-aro-fw"
+    },
+    "azfw_sku_name": {
+      "value": "AZFW_VNet"
+    },
+    "azfw_sku_tier": {
+      "value": "Standard"
+    },
+    "azfw_threat_intel_mode": {
+      "value": "Alert"
+    },
+    "azfw_enable_dns": {
+      "value": "true"
+    }
+  }
+}

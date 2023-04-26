@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "agentsvcPrivateDnsZoneName": {
+      "value": "privatelink.agentsvc.azure-automation.net"
+    },
+    "monitorPrivateDnsZoneName": {
+      "value": "privatelink.monitor.azure.com"
+    },
+    "odsPrivateDnsZoneName": {
+      "value": "privatelink.ods.opinsights.azure.com"
+    },
+    "omsPrivateDnsZoneName": {
+      "value": "privatelink.oms.opinsights.azure.com"
+    }
+  }
+}

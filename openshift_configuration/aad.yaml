@@ -1,0 +1,78 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: Azure Active Directory Configuration
+objects:
+- apiVersion: v1
+  data:
+    clientSecret: ${AAD_CLIENT_SECRET}
+  kind: Secret
+  metadata:
+    name: openid-client-secret
+    namespace: openshift-config
+  type: Opaque
+
+- apiVersion: config.openshift.io/v1
+  kind: OAuth
+  metadata:
+    name: cluster
+  spec:
+    identityProviders:
+    - mappingMethod: claim
+      name: ${IDP_NAME}
+      openID:
+        claims:
+          email:
+          - email
+          groups:
+          - groups
+          name:
+          - name
+          preferredUsername:
+          - upn
+        clientID: ${AAD_CLIENT_ID}
+        clientSecret:
+          name: openid-client-secret
+        extraScopes: []
+        issuer: https://login.microsoftonline.com/${TENANT_ID}
+      type: OpenID
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    name: aad-cluster-admin-group
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: cluster-admin
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: '["${AAD_GROUP_ID}"]'
+   
+parameters:
+- description: The name of the AAD tenant to use
+  displayName: Tenant Id
+  name: TENANT_ID
+  required: true
+
+- description: The name to appear on the front page of ARO
+  displayName: IDP Name
+  name: IDP_NAME
+  required: true
+  value: AAD
+
+- description: AAD Client ID for authentication
+  displayName: AAD Client ID
+  name: AAD_CLIENT_ID
+  required: true
+
+- description: AAD Client Secret
+  displayName: AAD Client Secret
+  name: AAD_CLIENT_SECRET
+  required: true
+
+- description: AAD Group ID for cluster-admin privileges
+  displayName: AAD Group ID
+  name: AAD_GROUP_ID
+  required: true

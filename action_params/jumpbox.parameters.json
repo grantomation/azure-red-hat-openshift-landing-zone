@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "jumpboxSubnetName": {
+      "value": "jumpbox-subnet"
+    },
+    "jumpbox_vm_name": {
+      "value": "jumpbox"
+    },
+    "jumpbox_vm_size": {
+      "value": "Standard_DS1_v2"
+    },
+    "jumpbox_image_publisher": {
+      "value": "MicrosoftWindowsDesktop"
+    },
+    "jumpbox_image_offer": {
+      "value": "windows-11"
+    },
+    "jumpbox_image_sku": {
+      "value": "win11-21h2-pro"
+    },
+    "jumpbox_image_version": {
+      "value": "latest"
+    }
+  }
+}

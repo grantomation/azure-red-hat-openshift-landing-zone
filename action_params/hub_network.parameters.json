@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "hubVnetName": {
+      "value": "hub-vnet"
+    },
+    "hubVnetAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "tags": {
+      "value": {
+          "env": "Dev",
+          "dept": "Black Belt"
+      }
+    },
+    "azFwSubnetCidr": {
+      "value": "10.0.0.0/26"
+    },
+    "bastionSubnetCidr": {
+      "value": "10.0.0.64/26"
+    },
+    "jumpboxSubnetName": {
+      "value": "jumpbox-subnet"
+    },
+    "jumpboxSubnetCidr": {
+      "value": "10.0.1.0/24"
+    },
+    "aciSubnetName": {
+      "value": "aci-subnet"
+    },
+    "aciSubnetCidr": {
+      "value": "10.0.2.0/24"
+    }
+  }
+}

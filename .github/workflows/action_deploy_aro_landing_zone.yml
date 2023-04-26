@@ -1,0 +1,880 @@
+name: Deploy Azure ARO Landing Zone
+on: 
+  [workflow_dispatch]
+jobs: 
+  identity:
+    runs-on: ubuntu-latest
+    outputs:
+      identityClientId: ${{ steps.identity.outputs.identityClientId }}
+      identityObjectId: ${{ steps.identity.outputs.identityObjectId }}
+      identityName: ${{ steps.identity.outputs.identityName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: create identity
+      uses: azure/arm-deploy@v1
+      id: identity
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/managed_identity.bicep
+        parameters: >
+          ./action_params/managed_identity.parameters.json
+          location="${{ vars.LOCATION }}"
+        deploymentName: identity-github-actions
+
+  hub_networking:
+    runs-on: ubuntu-latest
+    outputs:
+      hubVnetName: ${{ steps.hub.outputs.hubVnetName }}
+      aciSubnetName: ${{ steps.hub.outputs.aciSubnetName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: hub networking
+      uses: azure/arm-deploy@v1
+      id: hub
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/hub_network.bicep
+        parameters: >
+          ./action_params/hub_network.parameters.json
+          location="${{ vars.LOCATION }}"
+        deploymentName: hub-networking-github-actions
+
+  spoke_networking:
+    runs-on: ubuntu-latest
+    needs: user_defined_routing
+    outputs:
+      spokeVnetName: ${{ steps.spoke.outputs.spokeVnetName }}
+      computeSubnetName: ${{ steps.spoke.outputs.computeSubnetName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: spoke networking
+      uses: azure/arm-deploy@v1
+      id: spoke
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/spoke_network.bicep
+        parameters: >
+          ./action_params/spoke_network.parameters.json
+          location="${{ vars.LOCATION }}"
+          spoke_rg="${{ vars.SPOKE_RG }}"
+          routeTableName="${{ needs.user_defined_routing.outputs.routeTableName }}"
+        deploymentName: spoke-networking-github-actions
+
+  deploy_firewall:
+    needs: hub_networking
+    runs-on: ubuntu-latest
+    outputs:
+      fwPrivateIP: ${{ steps.firewall.outputs.fwPrivateIP }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_firewall
+      uses: azure/arm-deploy@v1
+      id: firewall
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/firewall.bicep
+        parameters: >
+          ./action_params/firewall.parameters.json
+          location="${{ vars.LOCATION }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+        deploymentName: firewall-github-actions
+
+  user_defined_routing:
+    needs: deploy_firewall
+    runs-on: ubuntu-latest
+    outputs:
+      routeTableName: ${{ steps.route_table.outputs.routeTableName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: create_route
+      uses: azure/arm-deploy@v1
+      id: route_table
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/routing_table.bicep
+        parameters: >
+          ./action_params/routing.parameters.json
+          location="${{ vars.LOCATION }}"
+          fwPrivateIP="${{ needs.deploy_firewall.outputs.fwPrivateIP }}"
+        deploymentName: udr-github-actions
+
+  setup_peering:
+    needs: [hub_networking, spoke_networking]
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: hub_peering
+      uses: azure/arm-deploy@v1
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/peering.bicep
+        parameters: >
+          localVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+          remoteVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+          rgToPeer="${{ vars.SPOKE_RG }}"
+        deploymentName: hub-peering-github-actions
+
+    - name: spoke_peering
+      uses: azure/arm-deploy@v1
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/peering.bicep
+        parameters: >
+          localVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}" 
+          remoteVnetName="${{ needs.hub_networking.outputs.hubVnetName }}" 
+          rgToPeer="${{ vars.HUB_RG }}"
+        deploymentName: spoke-peering-github-actions
+    
+  deploy_acr:
+    needs: [identity]
+    runs-on: ubuntu-latest
+    outputs:
+      acrName: ${{ steps.acr.outputs.acrName }}
+      loginServer: ${{ steps.acr.outputs.loginServer }}
+      acrSkuName: ${{ steps.acr.outputs.acrSkuName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_acr
+      uses: azure/arm-deploy@v1
+      id: acr
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SERVICES_RG }}
+        template: ./modules/acr.bicep
+        parameters: > 
+          ./action_params/acr.parameters.json
+          location="${{ vars.LOCATION }}" 
+          principalId="${{ needs.identity.outputs.identityObjectId }}"
+        deploymentName: acr-github-actions
+
+  deploy_aro: 
+    needs: [spoke_networking, setup_peering, deploy_secure_log_analytics_workspace]
+    runs-on: ubuntu-latest
+    outputs:
+      clusterName: ${{ steps.aro.outputs.clusterName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get latest version of ARO
+      run: | 
+        # ARO_LATEST=$(az aro get-versions -l ${{ vars.LOCATION }} | sort -nr | head -n 1)
+        ARO_LATEST=$(az rest --method get --url https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.RedHatOpenShift/locations/${{ vars.LOCATION }}/openshiftversions?api-version=2022-09-04 | jq -r .value[].properties.version | sort -rn | head -n 1)
+        echo "ARO_LATEST=${ARO_LATEST}" >> $GITHUB_ENV
+      shell: bash
+     
+    - name: aro_cluster
+      uses: azure/arm-deploy@v1
+      id: aro
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/aro_cluster.bicep
+        parameters: >
+          ./action_params/aro.parameters.json 
+          pullSecret="${{ secrets.PULL_SECRET }}"
+          location="${{ vars.LOCATION }}"
+          aadClientId="${{ secrets.AAD_CLIENT_ID }}"
+          aadClientSecret="${{ secrets.AAD_CLIENT_SECRET }}"
+          aadObjectId="${{ secrets.AAD_OBJECT_ID }}"
+          rpObjectId="${{ secrets.ARO_RP_OB_ID }}"
+          spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+          addSpRoleAssignment='no'
+          openshiftVersion="${{ env.ARO_LATEST }}"
+        deploymentName: aro-github-actions
+
+  build_and_push:
+    needs: [deploy_acr]
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get ACR token
+      run: |      
+          ACR_TOKEN="$(az acr login --name ${{ needs.deploy_acr.outputs.acrName }} --expose-token --query accessToken -o tsv)"
+          echo "ACR_TOKEN=${ACR_TOKEN}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: login to acr
+      uses: azure/docker-login@v1
+      with: 
+        login-server: ${{ needs.deploy_acr.outputs.loginServer }}
+        username: ${{ vars.ACR_USERNAME }}
+        password: ${{ env.ACR_TOKEN }}
+
+    - name: build and push container
+      run: | 
+        docker build . -f ./config_runner_container/Dockerfile -t ${{ needs.deploy_acr.outputs.loginServer }}/${{ vars.CONTAINER_BUILD_NAME }} --build-arg GITHUB_RUNNER_VERSION=${{ vars.GH_RUNNER_VERSION }} --build-arg HELM_VERSION=${{ vars.HELM_VERSION }}
+        docker push ${{ needs.deploy_acr.outputs.loginServer }}/${{ vars.CONTAINER_BUILD_NAME }}
+
+  secure_acr:
+    runs-on: ubuntu-latest
+    needs: [build_and_push, deploy_acr, spoke_networking, hub_networking]
+    outputs:
+      acrPrivateDnsZoneName: ${{ steps.acr_private_dns.outputs.acrPrivateDnsZoneName }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy private DNS for ACR
+        uses: azure/arm-deploy@v1
+        id: acr_private_dns
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.HUB_RG }}
+          template: ./modules/acr_private_dns.bicep        
+          deploymentName: privatedns-github-actions
+
+      - name: Secure Registry
+        uses: azure/arm-deploy@v1
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SERVICES_RG }}
+          template: ./modules/acr_private.bicep
+          parameters:
+            location="${{ vars.LOCATION }}" 
+            acrName="${{ needs.deploy_acr.outputs.acrName }}"
+            acrSkuName="${{ needs.deploy_acr.outputs.acrSkuName }}"
+          deploymentName: privateregistry-github-actions
+
+      - name: Configure Private Endpoint
+        uses: azure/arm-deploy@v1
+        id: endpoint
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SERVICES_RG }}
+          template: ./modules/acr_private_endpoint.bicep
+          parameters:
+            ./action_params/acr_private_endpoint.parameters.json
+            location="${{ vars.LOCATION }}" 
+            acrName="${{ needs.deploy_acr.outputs.acrName }}"
+            acrPrivateDnsZoneName="${{ steps.acr_private_dns.outputs.acrPrivateDnsZoneName }}"
+            computeSubnetName="${{ needs.spoke_networking.outputs.computeSubnetName }}"
+            spokeRG="${{ vars.SPOKE_RG }}"
+            spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+            hubRG="${{ vars.HUB_RG }}"
+          deploymentName: privateregistryendpoint-github-actions
+
+      - name: Configure ACR Endpoint DNS
+        uses: azure/arm-deploy@v1
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.HUB_RG }}
+          template: ./modules/acr_private_dns_endpoints.bicep
+          parameters:
+            acrPrivateDnsZoneName="${{ steps.acr_private_dns.outputs.acrPrivateDnsZoneName }}"
+            spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+            hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+            spokeRG="${{ vars.SPOKE_RG }}"
+          deploymentName: privatednslinks-github-actions
+
+  deploy_aci_secrets:
+    runs-on: ubuntu-latest
+    needs: [identity, hub_networking, secure_acr, build_and_push, deploy_acr]
+    outputs:
+      containerName: ${{ steps.aci_keyvault.outputs.containerName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_aci_keyvault
+      uses: azure/arm-deploy@v1
+      id: aci_keyvault
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/aci.bicep
+        parameters: > 
+          ./action_params/aci_kv.parameters.json
+          location="${{ vars.LOCATION }}" 
+          loginServer="${{ needs.deploy_acr.outputs.loginServer }}"
+          containerBuildName="${{ vars.CONTAINER_BUILD_NAME }}"
+          ghRepository=${{ vars.GH_REPOSITORY }}
+          ghPersonalToken=${{ secrets.PAT_GITHUB }}
+          aciSubnetName="${{ needs.hub_networking.outputs.aciSubnetName }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+          identityName="${{ needs.identity.outputs.identityName }}"
+        deploymentName: aci-kv-github-actions 
+
+  deploy_secure_vault:
+    runs-on: ubuntu-latest
+    needs: [spoke_networking, hub_networking, identity]
+    outputs:
+      keyVaultPrivateDnsZoneName: ${{ steps.keyvault_private_dns.outputs.keyVaultPrivateDnsZoneName }}
+      keyVaultName: ${{ steps.keyvault.outputs.keyVaultName }}
+      keyVaultUri: ${{ steps.keyvault.outputs.keyVaultUri }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy private DNS for Keyvault
+        uses: azure/arm-deploy@v1
+        id: keyvault_private_dns
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.HUB_RG }}
+          template: ./modules/keyvault_private_dns.bicep
+          parameters: > 
+              ./action_params/keyvault_private_dns.parameters.json
+              hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+              spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+              spokeRG="${{ vars.SPOKE_RG }}"
+          deploymentName: keyvault-dns-github-actions 
+
+      - name: Deploy secure keyvault and endpoint
+        uses: azure/arm-deploy@v1
+        id: keyvault
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SERVICES_RG }}
+          template: ./modules/keyvault.bicep
+          parameters: >
+              ./action_params/keyvault.parameters.json
+              location=${{ vars.LOCATION }}
+              keyVaultPrivateDnsZoneName=${{ steps.keyvault_private_dns.outputs.keyVaultPrivateDnsZoneName }}
+              spokeVnetName=${{ needs.spoke_networking.outputs.spokeVnetName }}
+              computeSubnetName=${{ needs.spoke_networking.outputs.computeSubnetName }}              
+              identityObjectId=${{ needs.identity.outputs.identityObjectId }}
+              aadObjectId=${{ secrets.AAD_OBJECT_ID }}
+              spokeRG="${{ vars.SPOKE_RG }}"
+              hubRG="${{ vars.HUB_RG }}"
+          deploymentName: keyvault-github-actions
+
+  deploy_secure_storage:
+    runs-on: ubuntu-latest
+    needs: [spoke_networking, hub_networking, identity]
+    outputs:
+      storagePrivateDnsZoneName: ${{ steps.storage_private_dns.outputs.storagePrivateDnsZoneName }}
+      storageAccountName: ${{ steps.secure_storage.outputs.storageAccountName }}
+      blobContainerName: ${{ steps.secure_storage.outputs.blobContainerName }}
+      blobEndpoint: ${{ steps.secure_storage.outputs.blobEndpoint }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy private DNS for Storage
+        uses: azure/arm-deploy@v1
+        id: storage_private_dns
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.HUB_RG }}
+          template: ./modules/storage_private_dns.bicep
+          parameters: > 
+              ./action_params/storage_private_dns.parameters.json
+              hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+              spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName}}"
+              spokeRG="${{ vars.SPOKE_RG }}"
+          deploymentName: storage-dns-github-actions 
+
+      - name: Deploy secure storage and endpoint
+        uses: azure/arm-deploy@v1
+        id: secure_storage
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SERVICES_RG }}
+          template: ./modules/storage.bicep
+          parameters: >
+              ./action_params/storage.parameters.json
+              location=${{ vars.LOCATION }}
+              spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+              computeSubnetName="${{ needs.spoke_networking.outputs.computeSubnetName }}"
+              storagePrivateDnsZoneName=${{ steps.storage_private_dns.outputs.storagePrivateDnsZoneName }}
+              aadObjectId=${{ secrets.AAD_OBJECT_ID }}
+              identityObjectId="${{ needs.identity.outputs.identityObjectId }}"
+              spokeRG="${{ vars.SPOKE_RG }}"
+              hubRG="${{ vars.HUB_RG }}"
+          deploymentName: storage-github-actions
+          
+  deploy_secure_log_analytics_workspace:
+    runs-on: ubuntu-latest
+    #secure storage a dependency for privatelink blob dns zone which is a dependency for AMPLS
+    needs: [spoke_networking, hub_networking, deploy_secure_storage]
+    outputs:
+      agentsvcPrivateDnsZoneName: ${{ steps.law_private_dns.outputs.agentsvcPrivateDnsZoneName }}
+      monitorPrivateDnsZoneName: ${{ steps.law_private_dns.outputs.monitorPrivateDnsZoneName }}
+      odsPrivateDnsZoneName: ${{ steps.law_private_dns.outputs.odsPrivateDnsZoneName }}
+      omsPrivateDnsZoneName: ${{ steps.law_private_dns.outputs.omsPrivateDnsZoneName }}
+      lawName: ${{ steps.law.outputs.lawName }}
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: azure login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy DNS for log analytics workspace
+        uses: azure/arm-deploy@v1
+        id: law_private_dns
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.HUB_RG }}
+          template: ./modules/law_dns.bicep
+          parameters: > 
+              ./action_params/law_dns.parameters.json
+              hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+              spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+              spokeRG="${{ vars.SPOKE_RG }}"
+              hubRG="${{ vars.HUB_RG }}"
+          deploymentName: loganalytics-dns-github-actions 
+
+      - name: Deploy log analytics workspace with AMPLS and endpoint
+        uses: azure/arm-deploy@v1
+        id: law
+        with:
+          scope: resourcegroup
+          subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SERVICES_RG }}
+          template: ./modules/law.bicep
+          parameters: > 
+              ./action_params/law.parameters.json
+              location=${{ vars.LOCATION }}
+              agentsvcPrivateDnsZoneName="${{ steps.law_private_dns.outputs.agentsvcPrivateDnsZoneName }}"
+              monitorPrivateDnsZoneName="${{ steps.law_private_dns.outputs.monitorPrivateDnsZoneName }}"
+              odsPrivateDnsZoneName="${{ steps.law_private_dns.outputs.odsPrivateDnsZoneName }}"
+              omsPrivateDnsZoneName="${{ steps.law_private_dns.outputs.omsPrivateDnsZoneName }}"
+              blobPrivateDnsZoneName="${{ needs.deploy_secure_storage.outputs.storagePrivateDnsZoneName }}"
+              spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+              computeSubnetName="${{ needs.spoke_networking.outputs.computeSubnetName }}"
+              hubRG="${{ vars.HUB_RG }}"
+              spokeRG="${{ vars.SPOKE_RG }}"
+          deploymentName: loganalytics-github-actions 
+
+  write_secrets:
+    runs-on: self-hosted
+    needs: [deploy_aci_secrets, deploy_secure_vault, deploy_secure_storage, deploy_aro]
+    outputs:
+      fileName: ${{ steps.write.outputs.fileName }}
+      tarName: ${{ steps.write.outputs.tarName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: write secrets to keyvault, file to storage
+      id: write
+      run: | 
+        ARO_API="$(az aro show -n ${{ needs.deploy_aro.outputs.clusterName }} -g ${{ vars.SPOKE_RG }} --query apiserverProfile.url -o tsv)"
+        az keyvault secret set --name aroApiServer --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${ARO_API}
+        ARO_PWD="$(az aro list-credentials -n ${{ needs.deploy_aro.outputs.clusterName }} -g ${{ vars.SPOKE_RG }} --query kubeadminPassword -o tsv)"
+        az keyvault secret set --name aroKubeAdminPassword --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${ARO_PWD}
+
+        az keyvault secret set --name azureSubscription --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ vars.AZURE_SUBSCRIPTION }}
+        az keyvault secret set --name location --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ vars.LOCATION }}
+        az keyvault secret set --name aadClientId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_CLIENT_ID }}
+        az keyvault secret set --name aadClientSecret --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_CLIENT_SECRET }}
+        az keyvault secret set --name tenantId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.TENANT_ID }}
+        az keyvault secret set --name aadAdminGroupId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_ADMIN_GROUP_ID }}
+
+        # Upload configuration files to secure storage account
+        JUMPBOX_CONFIG_FILE="openshift.ps1"
+        JUMPBOX_CONFIG_FILE_PATH="./config_jumpbox/${JUMPBOX_CONFIG_FILE}"
+        OPENSHIFT_CONFIG_TAR_NAME="openshift_config.tar.gz"
+        
+        az storage blob upload -f ${JUMPBOX_CONFIG_FILE_PATH} --account-name ${{ needs.deploy_secure_storage.outputs.storageAccountName }} --auth-mode login -c ${{ needs.deploy_secure_storage.outputs.blobContainerName }} -n ${JUMPBOX_CONFIG_FILE}        
+        echo "fileName=${JUMPBOX_CONFIG_FILE}" >> $GITHUB_OUTPUT
+              
+        tar -czvf ${OPENSHIFT_CONFIG_TAR_NAME} ./openshift_configuration/*
+
+        az storage blob upload -f ${OPENSHIFT_CONFIG_TAR_NAME} --account-name ${{ needs.deploy_secure_storage.outputs.storageAccountName }} --auth-mode login -c ${{ needs.deploy_secure_storage.outputs.blobContainerName }} -n ${OPENSHIFT_CONFIG_TAR_NAME}
+        echo "tarName=${OPENSHIFT_CONFIG_TAR_NAME}" >> $GITHUB_OUTPUT
+      shell: bash
+
+  deploy_bastion:
+    needs: hub_networking
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_bastion
+      uses: azure/arm-deploy@v1
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/bastion.bicep
+        parameters: >
+          ./action_params/bastion.parameters.json
+          location="${{ vars.LOCATION }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+        deploymentName: bastion-github-actions
+
+  deploy_aci_jumpbox:
+    runs-on: ubuntu-latest
+    needs: [deploy_aci_secrets, identity, hub_networking, secure_acr, build_and_push, deploy_acr]
+    outputs:
+      containerName: ${{ steps.aci_jumpbox.outputs.containerName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_aci_jumpbox
+      uses: azure/arm-deploy@v1
+      id: aci_jumpbox
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/aci.bicep
+        parameters: > 
+          ./action_params/aci_jumpbox.parameters.json 
+          location="${{ vars.LOCATION }}" 
+          loginServer="${{ needs.deploy_acr.outputs.loginServer }}"
+          containerBuildName="${{ vars.CONTAINER_BUILD_NAME }}"
+          aciSubnetName="${{ needs.hub_networking.outputs.aciSubnetName }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+          identityName="${{ needs.identity.outputs.identityName }}"
+          ghRepository="${{ vars.GH_REPOSITORY }}"
+          ghPersonalToken="${{ secrets.PAT_GITHUB }}"
+        deploymentName: aci-jumpbox-github-actions 
+
+  deploy_jumpbox:
+    needs: [write_secrets, identity, deploy_secure_storage, hub_networking, deploy_aci_jumpbox]
+    runs-on: self-hosted
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_jumpbox
+      uses: azure/arm-deploy@v1
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/jumpbox.bicep
+        parameters: > 
+          ./action_params/jumpbox.parameters.json
+          location="${{ vars.LOCATION }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+          adminUsername="${{ secrets.JUMPBOX_ADMIN_USER }}" 
+          adminPassword="${{ secrets.JUMPBOX_ADMIN_PWD }}"
+          blobContainerName="${{ needs.deploy_secure_storage.outputs.blobContainerName }}"
+          identityName="${{ needs.identity.outputs.identityName }}"
+          blobEndpoint="${{ needs.deploy_secure_storage.outputs.blobEndpoint }}"
+          fileName="${{ needs.write_secrets.outputs.fileName }}"
+        deploymentName: jumpbox-github-actions
+
+  clean_up_containers:
+    needs: [deploy_jumpbox, write_secrets, deploy_aci_jumpbox, deploy_aci_secrets]
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Remove Containers
+      run: |
+          az container delete -n ${{ needs.deploy_aci_jumpbox.outputs.containerName }} -g ${{ vars.HUB_RG }} -y
+          az container delete -n ${{ needs.deploy_aci_secrets.outputs.containerName }} -g ${{ vars.HUB_RG }} -y
+      shell: bash
+  
+  deploy_frontdoor: 
+    runs-on: ubuntu-latest
+    needs: [deploy_aro, deploy_aci_aro, spoke_networking]
+    outputs:
+      fdPlsName: ${{ steps.frontdoor_pls.outputs.fdPlsName }}
+      afdHostName: ${{ steps.host_name.outputs.afdHostName }}
+      frontDoorName: ${{ steps.front_door.outputs.frontDoorName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get details from ARO loadbalancer
+      run: |
+          ARO_RGNAME=$(az aro show -n ${{ needs.deploy_aro.outputs.clusterName }} -g ${{ vars.SPOKE_RG }} --query clusterProfile.resourceGroupId -o tsv | sed 's/.*\///')
+          INTERNAL_LBNAME=$(az network lb list --resource-group $ARO_RGNAME --query "[? contains(name, 'internal')].name" -o tsv)
+
+          LBCONFIG_ID=$(az network lb frontend-ip list -g $ARO_RGNAME --lb-name $INTERNAL_LBNAME --query "[? ends_with(subnet.id,'${{ needs.spoke_networking.outputs.computeSubnetName }}')].id" -o tsv)
+          echo "LBCONFIG_ID=${LBCONFIG_ID}" >> $GITHUB_ENV
+
+          LBCONFIG_IP=$(az network lb frontend-ip list -g $ARO_RGNAME --lb-name $INTERNAL_LBNAME --query "[? ends_with(subnet.id,'${{ needs.spoke_networking.outputs.computeSubnetName }}')].privateIPAddress" -o tsv)
+          echo "LBCONFIG_IP=${LBCONFIG_IP}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Setup private link service
+      uses: azure/arm-deploy@v1
+      id: frontdoor_pls
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/front_door_pls.bicep
+        parameters: > 
+          ./action_params/front_door_pls.parameters.json     
+          location="${{ vars.LOCATION }}" 
+          lbFeIpConfig="${{ env.LBCONFIG_ID }}"
+          spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
+          computeSubnetName="${{ needs.spoke_networking.outputs.computeSubnetName }}"
+        deploymentName: front-door-pls-github-actions 
+
+    - name: Get privatelink Id
+      run: |
+        AZFD_PLS_ID=$(az network private-link-service show -n ${{ steps.frontdoor_pls.outputs.fdPlsName }} -g ${{ vars.SPOKE_RG }} --query id -o tsv)
+        echo "AZFD_PLS_ID=${AZFD_PLS_ID}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Deploy Front Door
+      uses: azure/arm-deploy@v1
+      id: front_door
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.SPOKE_RG }}
+        template: ./modules/front_door.bicep
+        parameters: > 
+          ./action_params/front_door.parameters.json          
+          location=${{ vars.LOCATION }}
+          lbFeIpConfig="${{ env.LBCONFIG_IP }}"
+          fdPlsId="${{ env.AZFD_PLS_ID }}"
+        deploymentName: front-door-github-actions 
+
+    - name: Approve Private Link Connection
+      id: host_name
+      run: |
+        PLS_PE_ID=$(az network private-link-service show -n ${{ steps.frontdoor_pls.outputs.fdPlsName }} -g ${{ vars.SPOKE_RG }} --query 'privateEndpointConnections[0].id' -o tsv)
+        az network private-endpoint-connection approve --description 'Approved' --id $PLS_PE_ID
+
+        AFD_HOSTNAME=$(az afd endpoint list --profile-name ${{ steps.front_door.outputs.frontDoorName }} -g ${{ vars.SPOKE_RG }} --query [0].hostName -o tsv)
+        echo "afdHostName=${AFD_HOSTNAME}" >> $GITHUB_OUTPUT
+      shell: bash
+
+  deploy_aci_aro:
+    runs-on: ubuntu-latest
+    needs: [deploy_aro, write_secrets, identity, hub_networking, deploy_acr, deploy_secure_vault]
+    outputs:
+      aciAroName: ${{ steps.aci_aro.outputs.containerName }}
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: deploy_aci_aro
+      uses: azure/arm-deploy@v1
+      id: aci_aro
+      with:
+        scope: resourcegroup
+        subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
+        resourceGroupName: ${{ vars.HUB_RG }}
+        template: ./modules/aci_with_identity.bicep
+        parameters: > 
+          ./action_params/aci_aro.parameters.json
+          location="${{ vars.LOCATION }}" 
+          loginServer="${{ needs.deploy_acr.outputs.loginServer }}"
+          containerBuildName="${{ vars.CONTAINER_BUILD_NAME }}"
+          aciSubnetName="${{ needs.hub_networking.outputs.aciSubnetName }}"
+          hubVnetName="${{ needs.hub_networking.outputs.hubVnetName }}"
+          ghRepository=${{ vars.GH_REPOSITORY }}
+          ghPersonalToken=${{ secrets.PAT_GITHUB }}
+          keyVaultUri="${{ needs.deploy_secure_vault.outputs.keyVaultUri}}"
+          identityName="${{ needs.identity.outputs.identityName }}"
+        deploymentName: aci-kv-github-actions 
+
+  configure_aro:
+    needs: [deploy_aci_aro, deploy_secure_storage, write_secrets, deploy_secure_log_analytics_workspace, deploy_frontdoor]
+    runs-on: self-hosted
+    steps:
+    - name: checkout code
+      uses: actions/checkout@v3
+
+    - name: azure login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Configure ARO cluster
+      run: |
+        VAULT_TOKEN=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net' -H Metadata:true | jq -r '.access_token')
+
+        # Assign KeyVault Values to Variables
+        ARO_API=$(curl $KV_URI/secrets/aroApiServer/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        ARO_KUBEADMIN_PWD=$(curl $KV_URI/secrets/aroKubeAdminPassword/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"' )
+        AZURE_SUBSCRIPTION=$(curl $KV_URI/secrets/azureSubscription/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        LOCATION=$(curl $KV_URI/secrets/location/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        AAD_CLIENT_ID=$(curl $KV_URI/secrets/aadClientId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        AAD_CLIENT_SECRET=$(curl $KV_URI/secrets/aadClientSecret/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        TENANT_ID=$(curl $KV_URI/secrets/tenantId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        IDP_NAME=AAD
+        GROUP_ID=$(curl $KV_URI/secrets/aadAdminGroupId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+
+        # CONFIGURE OPENSHIFT AS KUBEADMIN
+        oc login -u kubeadmin -p $ARO_KUBEADMIN_PWD $ARO_API --insecure-skip-tls-verify
+
+        # Download the yaml files from secure storage
+        STORAGE_TOKEN=$(curl 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fstorage.azure.com%2F' -H Metadata:true | jq -r '.access_token')
+        curl -OJ ${{ needs.deploy_secure_storage.outputs.blobEndpoint}}${{ needs.deploy_secure_storage.outputs.blobContainerName}}/${{ needs.write_secrets.outputs.tarName }} -H "x-ms-version: 2017-11-09" -H "Authorization: Bearer $STORAGE_TOKEN"          
+        tar -xvf ${{ needs.write_secrets.outputs.tarName }}
+      
+        # Configure Active Directory (service principal has already been setup)
+        B64=$(echo -n $AAD_CLIENT_SECRET | base64)
+        oc process -f openshift_configuration/aad.yaml -p TENANT_ID=$TENANT_ID -p IDP_NAME=$IDP_NAME -p AAD_CLIENT_ID=$AAD_CLIENT_ID -p AAD_CLIENT_SECRET=$B64 -p AAD_GROUP_ID=$GROUP_ID | oc apply -f - --namespace=openshift-config
+
+        # Install web terminal operator
+        oc create -f openshift_configuration/web_terminal_operator.yaml
+
+        # Install sample web service from template
+        oc new-project sample-web-app
+        oc new-app --template httpd-example --name 'httpd' -n sample-web-app
+        oc patch route/httpd-example --patch '{"spec": {"host": "${{ needs.deploy_frontdoor.outputs.afdHostName }}"}}' -n sample-web-app
+
+        # Install Operators for Log forwarding
+        oc adm new-project openshift-logging
+        oc create -f openshift_configuration/rh_openshift_logging_operatorgroup.yaml
+        oc create -f openshift_configuration/rh_openshift_logging_subscription.yaml
+        oc adm new-project openshift-operators-redhat
+        oc create -f openshift_configuration/rh_elasticsearch_operatorgroup.yaml
+        oc create -f openshift_configuration/rh_elasticsearch_subscription.yaml
+        oc create -f openshift_configuration/rh_loki_subscription.yaml     
+
+        # Ensure the operators install prior to deploying log forwarding
+        sleep 120
+
+        # Deploy Cluster Logging Forwarder Template
+        oc new-project cluster-log-forwarder
+        oc create -f openshift_configuration/clf_template.yaml
+
+        WORKSPACE_ID=$(az monitor log-analytics workspace show -g ${{ vars.SERVICES_RG }} -n ${{ needs.deploy_secure_log_analytics_workspace.outputs.lawName }} --query customerId -o tsv)
+        SHARED_KEY=$(az monitor log-analytics workspace get-shared-keys -g ${{ vars.SERVICES_RG }} -n ${{ needs.deploy_secure_log_analytics_workspace.outputs.lawName }} --query primarySharedKey -o tsv)
+        oc create secret generic aro-clf-law --from-literal=SharedKey=${SHARED_KEY} --from-literal=WorkspaceId=${WORKSPACE_ID}
+
+        oc process aro-cluster-log-forward | oc create -f -
+      shell: bash

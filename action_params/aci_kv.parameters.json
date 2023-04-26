@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "aciName": {
+      "value": "arolzkvconfig"
+    },
+    "aciSku": {
+      "value": "Standard"
+    },
+    "aciGroupName": {
+      "value": "arolzkvconfig"
+    },
+    "ghRunnerName" :{
+      "value": "kv-config-runner"
+    }
+  }
+}
