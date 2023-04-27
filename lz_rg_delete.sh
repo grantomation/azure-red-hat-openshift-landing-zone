@@ -1,11 +1,6 @@
 #!/bin/bash
-export SUBSCRIPTION=$(az account show --query id -o tsv)
-export LOCATION="<insert azure region where you would like to deploy resources>"
-export HUB_RG="<insert name of the Hub Networking resource group>"
-export SPOKE_RG="<insert name of spoke resource group containing ARO>"
-export SERVICES_RG="<insert name of resource group containing services>"
-export KEYVAULT_NAME="<insert desired name of keyvault. This needs to match the value for 'keyVaultName' in 'action_params/keyvault.parameters.json>"
-export LAW="<insert desired name of Log Analytics Workspace. This needs to match the value for 'lawName' in 'action_params/law.parameters.json>"
+
+source helper_vars.sh
 
 zone=("privatelink.azurecr.io" "privatelink.vaultcore.azure.net" "privatelink.blob.core.windows.net" "privatelink.oms.opinsights.azure.com" "privatelink.ods.opinsights.azure.com" "privatelink.monitor.azure.com" "privatelink.agentsvc.azure-automation.net
 ")

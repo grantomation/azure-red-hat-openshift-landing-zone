@@ -102,67 +102,61 @@ $ az role assignment create --assignee $AAD_CLIENT_ID --role "User Access Admini
 ## Create Red Hat pull secret 
 For an Azure Red Hat OpenShift (ARO) private cluster deployment, a Red Hat pull secret is still needed to download and use Red Hat images for Operators found in the Operator Hub. A pull secret is essentially an authentication token that provides access to Red Hat's registry, which contains container images and other software packages. If you do not have a pull-secret from Red Hat already then please browse to [cloud.redhat.com](https://cloud.redhat.com) to create one. The Red Hat pull secret will be used as a Github repository secret.
 
-## <a id="aad-oauth"></a> Azure Active Directory Identity Provider
-Azure Red Hat OpenShift (ARO), requires an Identity Provider to authenticate users and grant them access to the cluster. An Identity Provider is a service that manages user identities, authentication, and authorization. 
+Place the Red Hat pull secret in a file called `pull-secret.json` at the root of this repo to ensure that the helper scripts can read it and write it to Github repository secrets for use in the Github actions workflow.
 
-After creating the Azure service principal follow the step 3 in [this document](https://mobb.ninja/docs/idp/group-claims/aro/#2-configure-optional-claims-for-optional-and-group-claims) so that AAD identity will work when it is configured towards the end of this workflow.
-
-# Helper Scripts
-
-## <a id="Github-secrets"></a>Github Repository Secrets and Variables creation
-
-> :warning: Remember to log in to the `gh` cli tool prior to the `gh_secrets_create.sh` helper script.
-
-Github repository secrets are encrypted environment variables that you can store in a repository on Github. These secrets are used to store sensitive information that is required by your Github Actions workflows, such as API keys, access tokens, and other secrets.
-
-Github Actions repository variables are environment variables that you can define for a specific repository in Github. These variables can be used in Github Actions workflows to store values that are specific to that repository.
-
-### *Required Github repository Vars*
-
-| Secret Name | Command to run to get correct value for secret | 
-| --- | --- | 
-| AZURE_SUBSCRIPTION | ` az account show --query id -o tsv ` | 
-| SPOKE_RG | \<insert the spoke resource group name\> | 
-| SERVICES_RG | \<insert the resource group name that holds the services\> | 
-| HUB_RG | \<insert the hub resource group name\> |
-| GH_REPOSITORY | \<insert the "github-owner/repository" combination\> |
-
-
-### *Required Github secrets*
-
-| Secret Name | Command to run to get correct value for secret | 
-| --- | --- | 
-| AZURE_CREDENTIALS | copy the contents of sp.txt here. Json format will work | 
-| AAD_CLIENT_ID | `az ad sp list --all --query "[?displayName == '$SP_NAME'].appId" -o tsv` |
-| AAD_CLIENT_SECRET | `cat sp.txt \| jq -r .clientSecret ` | 
-| AAD_OBJECT_ID | `az ad sp show --id $AAD_CLIENT_ID --query id -o tsv`  |
-| ARO_RP_OB_ID | `az ad sp list --all --query "[?appDisplayName=='Azure Red Hat OpenShift RP'].id" -o tsv` |
-| JUMPBOX_ADMIN_USER | \<insert the name of the windows user for the jumpbox\> | 
-| JUMPBOX_ADMIN_PWD | \<insert the password for the jumpbox\> | 
-| PAT_Github | \<insert your Github PAT\> |
-| PULL_SECRET | Format the Red Hat Pull Secret with the following command `cat pull-secret.json \| sed 's/"/\\"/g'` then place the output into the secret
-
-> **Note**
-> The pull secret should have the following syntax prior to adding it to the Github secret `{\"auths\":{\"cloud.openshift.com\":{\"auth\":\"XXXXXXXXXX\" ...`
-
-## Resource Group creation
-Prior to running the workflow a user with the appropriate permissions must create the initial resource groups and scope the service principal permissions to them.
-
-Running `lz_rg_create.sh` will perform these actions for you. You will need to change the variables at the top of the file to suit your environment.
-
-### Parameters and Variables for your environment
+## Set Parameters and Variables for your environment
 
 1. Modify the parameters found in `./action_params/*.json` to suit your Azure environment.
 
-## Github actions Deployment
+## Create Active Directory Security Group
+Create an Activer Directory Security Group which will contain the users that will be administrators for Azure Red Hat OpenShift (ARO).
+
+## Run the helper scripts
+
+### Set Helper Script Variables
+Set the following variables in the file `helper_vars.sh` to ensure that the helper scripts can operate
+
+| Helper Var Name | Description |
+| --- | --- | 
+| SP_FILE | File name which stores the service principal credentials. It should be `sp.txt` if you followed the commands above | 
+| SP_NAME | Name of the service principal that you created above | 
+| GH_REPOSITORY | The private github repository you are running this code from. In `github-owner/repository` format |
+| PAT_GITHUB | The Personal Access Token for Github that you created above |
+| LOCATION | Azure Region where cloud resources will be deployed | 
+| SERVICES_RG | The name of the resource group which will store services such as keyvault and ACR |
+| AAD_ADMIN_GROUP_ID | The ID of the Azure Active Directory Security Group. Get ID by running the following command `az ad group show -g <AAD GROUP NAME> --query id -o tsv` | 
+| GH_RUNNER_VERSION | The latest github runner version from https://github.com/actions/runner/releases/ |
+| HELM_VERSION | The latest helm version from https://github.com/helm/helm/releases |
+| JUMPBOX_ADMIN_USER | The name of the Jumpbox Virtual Machine Admin User | 
+| JUMPBOX_ADMIN_PWD | The password for the Jumpbox Virtual Machine Admin User | 
+| CONTAINER_BUILD_NAME | The name and tag for the Github runner container that is build default `aro-github-runner:1` | 
+
+All other variables in this file will be determined via lookup commands.
+
+### <a id="Github-secrets"></a>Create the Github Repository Secrets and Variables
+
+> :warning: Remember to log in to the `gh` cli tool prior to the `gh_secrets_create.sh` helper script.
+
+Github repository secrets are encrypted environment variables that you can store in a repository on Github. These secrets are used to store sensitive information that is required by your Github Actions workflows, such as API keys, access tokens, and other secrets. Github Actions repository variables are environment variables that you can define for a specific repository in Github. These variables can be used in Github Actions workflows to store values that are specific to that repository.
+
+Ensure that you are logged in to the Azure CLI with a user that has appropriate permissions and execute the script;
+
+`./gh_secrets_create.sh`
+
+### Run Resource Group creation
+Prior to running the workflow a user with the appropriate permissions must create the initial resource groups and scope the service principal permissions to them.
+
+Run `./lz_rg_create.sh` to perform these actions for you. You will need to change the variables at the top of the file to suit your environment.
+
+## Github actions Azure Red Hat OpenShift Landing Zone
 
 To run the Github actions to deploy the environment select the following;
 
 ![Run ARO Github action](./graphics/run_aro_action.png)
 
-## Github actions Cleanup
+## Github actions Resource Cleanup
 
-To complete a full cleanup of Azure resources I have created a shell script called `lz_rg_delete.sh` which will run resource group delete commands for you. You will need to change the variables at the top of the file to suit your environment.
+To complete a full cleanup of Azure resources execute the delete helper script `./lz_rg_delete.sh` which will run resource group delete commands for you. You will need to change the variables at the top of the file to suit your environment.
 
 An azure keyvault stays in a deleted state for approximately 90 days after deletion. This script will also purge the keyvault to ensure that there are no failures on the next ARO deployment.
 
