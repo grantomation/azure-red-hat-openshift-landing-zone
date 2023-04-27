@@ -82,6 +82,9 @@ resource amPrivateLinkScopes 'microsoft.insights/privatelinkscopes@2021-07-01-pr
       ingestionAccessMode: plsIngestionAccessMode
     }
   }
+  dependsOn: [
+    log_analytics_workspace
+  ]
 }
 
 resource amPrivateLinkScopesScopedResource 'Microsoft.Insights/privateLinkScopes/scopedResources@2021-07-01-preview' = {
