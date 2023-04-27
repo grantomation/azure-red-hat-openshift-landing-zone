@@ -123,6 +123,8 @@ Set the following variables in the file `helper_vars.sh` to ensure that the help
 | GH_REPOSITORY | The private github repository you are running this code from. In `github-owner/repository` format |
 | PAT_GITHUB | The Personal Access Token for Github that you created above |
 | LOCATION | Azure Region where cloud resources will be deployed | 
+| HUB_RG | The name of the resource group which will store Network Hub services such as Azure Firewall |
+| SPOKE_RG | The name of the resource group which will store Azure Red Hat OpenShift (ARO) components |
 | SERVICES_RG | The name of the resource group which will store services such as keyvault and ACR |
 | AAD_ADMIN_GROUP_ID | The ID of the Azure Active Directory Security Group. Get ID by running the following command `az ad group show -g <AAD GROUP NAME> --query id -o tsv` | 
 | GH_RUNNER_VERSION | The latest github runner version from https://github.com/actions/runner/releases/ |

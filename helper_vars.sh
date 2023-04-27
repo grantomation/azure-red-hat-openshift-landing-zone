@@ -8,6 +8,8 @@ export PAT_GITHUB="<insert your github personal access token>"
 # Set Azure variables
 export LOCATION="<insert azure region where you would like to deploy resources>"
 export SERVICES_RG="<insert name of resource group containing services>"
+export SPOKE_RG="<insert name of resource group containing ARO>"
+export HUB_RG="<insert name of resource group hub network services>"
 export AAD_ADMIN_GROUP_ID="<insert the id of the AAD group containing openshift administrators - az ad group show -g <MY AAD GROUP NAME> --query id -o tsv>"
 # Set Tooling version vars
 export GH_RUNNER_VERSION="<insert latest github runner version from https://github.com/actions/runner/releases/>"
