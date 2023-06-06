@@ -1,29 +1,4 @@
 #!/bin/bash
-export GH_REPOSITORY="<insert gh repository here format: user/repository>"
-export LOCATION="<insert azure region where you would like to deploy resources>"
-export HUB_RG="<insert name of the Hub Networking resource group>"
-export SERVICES_RG="<insert name of resource group containing services>"
-export SPOKE_RG="<insert name of spoke resource group containing ARO>"
-export SP_NAME="<insert the name of the Azure Service Principal (or app registration) that you created>"
-export AAD_ADMIN_GROUP_ID="<insert the id of the AAD group containing openshift administrators - az ad group show -g <MY AAD GROUP NAME> --query id -o tsv>"
-export PAT_GITHUB="<insert your github personal access token>"
-export JUMPBOX_ADMIN_USER="<insert username for the windows 11 jumpbox>"
-export JUMPBOX_ADMIN_PWD="<insert the password for the windows 11 jumpbox>"
-
-export GH_RUNNER_VERSION="<insert latest github runner version from https://github.com/actions/runner/releases/>"
-export HELM_VERSION="<insert latest helm version from https://github.com/helm/helm/releases>"
-
-export TENANT_ID=$(cat sp.txt | jq -r .tenantId)
-export AZURE_SUBSCRIPTION=$(az account show --query id -o tsv)
-export AZURE_CREDENTIALS=$(cat sp.txt)
-export AAD_CLIENT_ID=$(az ad sp list --show-mine --query "[?displayName == '$SP_NAME'].appId" -o tsv)
-export AAD_CLIENT_SECRET=$(cat sp.txt | jq -r .clientSecret)
-export AAD_OBJECT_ID=$(az ad sp show --id $AAD_CLIENT_ID --query id -o tsv)
-export ARO_RP_OB_ID=$(az ad sp list --all --query "[?appDisplayName=='Azure Red Hat OpenShift RP'].id" -o tsv)
-export PULL_SECRET=$(cat pull-secret.json | sed 's/"/\\"/g')
-export ACR_USERNAME="00000000-0000-0000-0000-000000000000"
-export CONTAINER_BUILD_NAME="aro-github-runner:1"
-
 # gh auth logout
 # gh auth login
 #Set the github repo

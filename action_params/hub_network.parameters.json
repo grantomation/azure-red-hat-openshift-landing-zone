@@ -11,7 +11,7 @@
     "tags": {
       "value": {
           "env": "Dev",
-          "dept": "Black Belt"
+          "dept": "IT"
       }
     },
     "azFwSubnetCidr": {

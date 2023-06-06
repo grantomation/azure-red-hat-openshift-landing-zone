@@ -12,8 +12,8 @@ export SPOKE_RG="<insert name of resource group containing ARO>"
 export HUB_RG="<insert name of resource group hub network services>"
 export AAD_ADMIN_GROUP_ID="<insert the id of the AAD group containing openshift administrators - az ad group show -g <MY AAD GROUP NAME> --query id -o tsv>"
 # Set Tooling version vars
-export GH_RUNNER_VERSION="<insert latest github runner version from https://github.com/actions/runner/releases/>"
-export HELM_VERSION="<insert latest helm version from https://github.com/helm/helm/releases>"
+export GH_RUNNER_VERSION="<insert latest github runner version from https://github.com/actions/runner/releases/> (omit the "v" from the version. e.g. GH_RUNNER_VERSION="3.12.0")"
+export HELM_VERSION="<insert latest helm version from https://github.com/helm/helm/releases> (omit the "v" from the version. e.g. HELM_VERSION="3.12.0")"
 # Set Jumpbox Vars
 export JUMPBOX_ADMIN_USER="<insert username for the windows 11 jumpbox>"
 export JUMPBOX_ADMIN_PWD="<insert the password for the windows 11 jumpbox>"
@@ -23,8 +23,7 @@ export CONTAINER_BUILD_NAME="aro-github-runner:1"
 # No need to modify these variables as they will self set
 export CLUSTER_NAME=$(jq -r '.parameters.clusterName.value' action_params/aro.parameters.json)
 export DOMAIN=$(jq -r '.parameters.domain.value' action_params/aro.parameters.json)
-export HUB_RG=$(jq -r '.parameters.hubVnetName.value' action_params/hub_network.parameters.json)
-export SPOKE_RG=$(jq -r '.parameters.spokeVnetName.value' action_params/spoke_network.parameters.json)
+
 export KEYVAULT_NAME=$(jq -r '.parameters.keyVaultName.value' action_params/keyvault.parameters.json)
 export LAW=$(jq -r '.parameters.lawName.value' action_params/law.parameters.json)
 export TENANT_ID=$(cat $SP_FILE | jq -r .tenantId)
