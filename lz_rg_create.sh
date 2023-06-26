@@ -17,6 +17,7 @@ az role assignment create --assignee $APPID --role contributor --scope $SCOPE_HU
 az role assignment create --assignee $APPID --role contributor --scope $SCOPE_SPOKE & 
 az role assignment create --assignee $APPID --role contributor --scope $SCOPE_SERVICES &
 az role assignment create --assignee $APPID --role "User Access Administrator" --scope $SCOPE_SPOKE &
+az role assignment create --assignee $APPID --role "User Access Administrator" --scope $SCOPE_SERVICES &
 
 # Configure and set permissions for group claim on the AAD App Registration/Service Principal
 az rest --method PATCH --url $GRAPH_URL --headers Content-Type=application/json --body '{"web":{"redirectUris":["'$REDIRECT_URL'"]}}' &
