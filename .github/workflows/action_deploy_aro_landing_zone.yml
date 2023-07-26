@@ -227,7 +227,7 @@ jobs:
 
     - name: Get latest version of ARO
       run: | 
-        # ARO_LATEST=$(az aro get-versions -l ${{ vars.LOCATION }} | sort -nr | head -n 1)
+        # ARO_LATEST=$(az aro get-versions -l ${{ vars.LOCATION }} -o tsv | sort -nr | head -n 1)
         ARO_LATEST=$(az rest --method get --url https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.RedHatOpenShift/locations/${{ vars.LOCATION }}/openshiftversions?api-version=2022-09-04 | jq -r .value[].properties.version | sort -rn | head -n 1)
         echo "ARO_LATEST=${ARO_LATEST}" >> $GITHUB_ENV
       shell: bash
