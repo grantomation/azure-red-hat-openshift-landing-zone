@@ -356,7 +356,6 @@ jobs:
   deploy_aci_secrets:
     runs-on: ubuntu-latest
     needs: [identity, hub_networking, secure_acr, build_and_push, deploy_acr, setup_peering]
-    timeout-minutes: 10
     outputs:
       containerName: ${{ steps.aci_keyvault.outputs.containerName }}
     steps:
@@ -620,7 +619,6 @@ jobs:
   deploy_aci_jumpbox:
     runs-on: ubuntu-latest
     needs: [deploy_aci_secrets, identity, hub_networking, secure_acr, build_and_push, deploy_acr]
-    timeout-minutes: 10
     outputs:
       containerName: ${{ steps.aci_jumpbox.outputs.containerName }}
     steps:
@@ -779,7 +777,6 @@ jobs:
   deploy_aci_aro:
     runs-on: ubuntu-latest
     needs: [deploy_aro, write_secrets, identity, hub_networking, deploy_acr, deploy_secure_vault, setup_peering]
-    timeout-minutes: 10
     outputs:
       aciAroName: ${{ steps.aci_aro.outputs.containerName }}
     steps:
@@ -856,7 +853,7 @@ jobs:
 
         # Install sample web service from template
         oc new-project sample-web-app
-        oc new-app --template httpd-example --name 'httpd' -n sample-web-app
+        oc process httpd-example -n openshift | oc create -f - -n sample-web-app
         oc patch route/httpd-example --patch '{"spec": {"host": "${{ needs.deploy_frontdoor.outputs.afdHostName }}"}}' -n sample-web-app
 
         # Install Operators for Log forwarding

@@ -1,105 +1,26 @@
 #!/bin/bash
 # gh auth logout
 # gh auth login
-#Set the github repo
+# Set the github repo
+
+#fix the pagination
+gh config set pager "less -FX"
 gh secret list -R $GH_REPOSITORY
 printf "\n"
 
 # List GH variables
-gh api \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables
+gh variable list -R $GH_REPOSITORY
 
-# AZURE_SUBSCRIPTION
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='AZURE_SUBSCRIPTION' \
- -f value=$AZURE_SUBSCRIPTION 
-
-# HUB_RG
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='HUB_RG' \
- -f value=$HUB_RG 
-
-# SERVICES_RG
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='SERVICES_RG' \
- -f value=$SERVICES_RG
-
-# SPOKE_RG
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='SPOKE_RG' \
- -f value=$SPOKE_RG
-
-# GH_REPOSITORY
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='GH_REPOSITORY' \
- -f value=$GH_REPOSITORY 
-
-# LOCATION
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='LOCATION' \
- -f value=$LOCATION 
-
-# ACR_USERNAME
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='ACR_USERNAME' \
- -f value=$ACR_USERNAME 
-
-# CONTAINER_BUILD_NAME
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='CONTAINER_BUILD_NAME' \
- -f value=$CONTAINER_BUILD_NAME
-
-# GH_RUNNER_VERSION
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='GH_RUNNER_VERSION' \
- -f value=$GH_RUNNER_VERSION
-
-# HELM_VERSION
-gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  -H "X-GitHub-Api-Version: 2022-11-28" \
-  /repos/$GH_REPOSITORY/actions/variables \
-  -f name='HELM_VERSION' \
- -f value=$HELM_VERSION
+gh variable set AZURE_SUBSCRIPTION --body $AZURE_SUBSCRIPTION -r $GH_REPOSITORY
+gh variable set HUB_RG --body $HUB_RG
+gh variable set SERVICES_RG --body $SERVICES_RG
+gh variable set SPOKE_RG --body $SPOKE_RG
+gh variable set GH_RESPOSITORY --body $GH_REPOSITORY
+gh variable set LOCATION --body $LOCATION
+gh variable set ACR_USERNAME --body $ACR_USERNAME
+gh variable set CONTAINER_BUILD_NAME --body $CONTAINER_BUILD_NAME
+gh variable set GH_RUNNER_VERSION --body $GH_RUNNER_VERSION
+gh variable set HELM_VERSION --body $HELM_VERSION
 
 gh secret set TENANT_ID --body "$TENANT_ID" -R $GH_REPOSITORY
 gh secret set AZURE_CREDENTIALS --body "$AZURE_CREDENTIALS" -R $GH_REPOSITORY
