@@ -12,8 +12,8 @@ export SPOKE_RG="<insert name of resource group containing ARO>"
 export HUB_RG="<insert name of resource group hub network services>"
 export AAD_ADMIN_GROUP_ID="<insert the id of the AAD group containing openshift administrators - az ad group show -g <MY AAD GROUP NAME> --query id -o tsv>"
 # Set Tooling version vars
-export GH_RUNNER_VERSION="<insert latest github runner version from https://github.com/actions/runner/releases/> (omit the "v" from the version. e.g. GH_RUNNER_VERSION="3.12.0")"
-export HELM_VERSION="<insert latest helm version from https://github.com/helm/helm/releases> (omit the "v" from the version. e.g. HELM_VERSION="3.12.0")"
+export GH_RUNNER_VERSION=$(curl -s "https://api.github.com/repos/actions/runner/releases/latest" | jq -r .tag_name | sed 's/^v//')
+export HELM_VERSION=$(curl -s "https://api.github.com/repos/helm/helm/releases/latest" | jq -r .tag_name | sed 's/^v//')
 # Set Jumpbox Vars
 export JUMPBOX_ADMIN_USER="<insert username for the windows 11 jumpbox>"
 export JUMPBOX_ADMIN_PWD="<insert the password for the windows 11 jumpbox>"
@@ -35,7 +35,9 @@ export GRAPH_URL=https://graph.microsoft.com/v1.0/applications/$AAD_APP_REG_OBJE
 export REDIRECT_URL=https://oauth-openshift.apps.$DOMAIN.$LOCATION.aroapp.io/oauth2callback/AAD
 export AAD_CLIENT_SECRET=$(cat $SP_FILE | jq -r .clientSecret)
 export AAD_OBJECT_ID=$(az ad sp show --id $AAD_CLIENT_ID --query id -o tsv)
-export ARO_RP_OB_ID=$(az ad sp list --all --query "[?appDisplayName=='Azure Red Hat OpenShift RP'].id" -o tsv)
+export AAD_SP_PROVIDER_ID=$(az provider show -n Microsoft.RedHatOpenShift --query "authorizations[0].applicationId" -o tsv)
+# export ARO_RP_OB_ID=$(az ad sp list --show-mine --query "[?appDisplayName=='Azure Red Hat OpenShift RP'].id" -o tsv)
+export ARO_RP_OB_ID=$(az ad sp show --id $AAD_SP_PROVIDER_ID --query id -o tsv)
 export PULL_SECRET=$(cat pull-secret.json | sed 's/"/\\"/g')
 # This is the default Username for ACR logins. Do not change
 export ACR_USERNAME="00000000-0000-0000-0000-000000000000"

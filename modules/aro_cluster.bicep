@@ -62,7 +62,7 @@ resource role_for_rpObjectId 'Microsoft.Authorization/roleAssignments@2020-10-01
   ]
 }
 
-resource aro 'Microsoft.RedHatOpenShift/openShiftClusters@2022-04-01' = {
+resource aro 'Microsoft.RedHatOpenShift/openShiftClusters@2023-09-04' = {
   name: clusterName
   location: location
   tags: tags
@@ -77,6 +77,7 @@ resource aro 'Microsoft.RedHatOpenShift/openShiftClusters@2022-04-01' = {
     networkProfile: {
       podCidr: podCidr
       serviceCidr: serviceCidr
+      outboundType: 'UserDefinedRouting'
     }
     servicePrincipalProfile: {
       clientId: aadClientId
