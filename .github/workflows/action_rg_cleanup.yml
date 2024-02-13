@@ -14,7 +14,7 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: hub cleanup
-      uses: azure/arm-deploy@v1
+      uses: azure/arm-deploy@v2
       with:
         scope: resourcegroup
         subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
@@ -35,7 +35,7 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: spoke cleanup
-      uses: azure/arm-deploy@v1
+      uses: azure/arm-deploy@v2
       with:
         scope: resourcegroup
         subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}
@@ -56,7 +56,7 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: spoke cleanup
-      uses: azure/arm-deploy@v1
+      uses: azure/arm-deploy@v2
       with:
         scope: resourcegroup
         subscriptionId: ${{ vars.AZURE_SUBSCRIPTION }}

@@ -41,6 +41,12 @@ Configuring resources which are restricted to private networks can be quite prob
 
 # Pre-requisites
 
+## Required Software
+* az command line
+* jq
+* curl
+* gh command line
+
 ## Make a copy of this repo on Github
 Make a copy of this repo to your Github account, ensure that it is a private repo, this wil prevent accidental leaking of secrets and avoid anyone from the public running the Github actions workflow.
 
@@ -62,12 +68,12 @@ The Github Personal access token is injected as a secure environment variable in
 ## Create Active Directory Security Group
 Create an Active Directory Security Group which will contain the users that will be administrators for Azure Red Hat OpenShift (ARO). You will need to place the 
 
-```
-$ export SG_NAME="<insert name of security group for openshift administrators>"
+```console
+export SG_NAME="<insert name of security group for openshift administrators>"
 
-$ az ad group create --display-name "$SG_NAME" --mail-nickname "mysecuritygroup" --security-enabled true
+az ad group create --display-name "$SG_NAME" --mail-nickname "mysecuritygroup" --security-enabled true
 
-$ az ad group list --filter "displayName eq 'SG_NAME'" --query "[].objectId" --output tsv
+az ad group list --filter "displayName eq 'SG_NAME'" --query "[].objectId" --output tsv
 ```
 
 ## Create Red Hat pull secret 
@@ -89,14 +95,16 @@ For this repo an Azure service principal is required. It has 3 uses;
 
 Create a service principal and give it the contributor role scoped to a resource group that you are going to use. For the first run of this github actions repository you need to create a service principal and need to assign it a scope. Following the below instructions will create the spoke resource group here manually in order to enable the creation of the service principal. If you keep the service principal for future runs of this github actions workflow then you will not need to run these steps again - as the service principal's details are already established.
 
-```
-$ export AZURE_SUBSCRIPTION=$(az account show --query id -o tsv)
-$ export SP_NAME="<your desired name for the service principal>"
-$ export SPOKE_RG="<the name for the spoke resource group>"
+```console
+export LOCATION=<your desired azure region>
+export AZURE_SUBSCRIPTION=$(az account show --query id -o tsv)
+export SP_NAME="<your desired name for the service principal>"
+export SPOKE_RG="<the name for the spoke resource group>"
 
-$ az ad sp create-for-rbac -n $SP_NAME --role contributor --sdk-auth --scopes "/subscriptions/$SUBSCRIPTION/resourceGroups/$SPOKE_RG" > sp.txt
+az group create --name $SPOKE_RG --location $LOCATION
+az ad sp create-for-rbac -n $SP_NAME --role contributor --sdk-auth --scopes "/subscriptions/$AZURE_SUBSCRIPTION/resourceGroups/$SPOKE_RG" > sp.txt
 
-$ export AAD_CLIENT_ID=$(az ad sp list --show-mine --query "[?displayName == '$SP_NAME'].appId" -o tsv)
+export AAD_CLIENT_ID=$(az ad sp list --show-mine --query "[?displayName == '$SP_NAME'].appId" -o tsv)
 
 ```
 
@@ -138,14 +146,19 @@ The following parameter names require unique names - so please be mindful of thi
 ## Register Azure Providers
 The following Azure services need to be registered prior to deployment;
 
-```
+```console
 az provider register -n Microsoft.RedHatOpenShift
 az provider register -n Microsoft.Storage
 az provider register -n Microsoft.KeyVault
 az provider register -n Microsoft.Compute
 az provider register -n Microsoft.ContainerRegistry
 az provider register -n Microsoft.Cdn
+az provider register -n Microsoft.ContainerInstance
+az provider register -n Microsoft.OperationalInsights
+az provider register -n Microsoft.Insights
+
 ```
+
 
 ## Set the appropriate quota for your environment
 
@@ -161,9 +174,18 @@ Default virtual machine types for ARO are "Standard D4s v3" machines.
 
 Github repository secrets are encrypted environment variables that you can store in a repository on Github. These secrets are used to store sensitive information that is required by your Github Actions workflows, such as API keys, access tokens, and other secrets. Github Actions repository variables are environment variables that you can define for a specific repository in Github. These variables can be used in Github Actions workflows to store values that are specific to that repository.
 
-Ensure that you are logged in to the Azure CLI with a user that has appropriate permissions and execute the script;
+Ensure that you are logged in to the Azure CLI with a user that has appropriate permissions and execute the following commands;
 
-`./gh_secrets_create.sh`
+```console
+chmod +x helper_vars.sh
+
+
+
+./gh_secrets_create.sh
+
+
+```
+
 
 ### Run Resource Group creation
 Prior to running the workflow a user with the appropriate permissions must create the initial resource groups and scope the service principal permissions to them.

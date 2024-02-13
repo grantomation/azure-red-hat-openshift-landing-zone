@@ -1,4 +1,7 @@
 #!/bin/bash
+
+source helper_vars.sh
+
 # gh auth logout
 # gh auth login
 # Set the github repo
