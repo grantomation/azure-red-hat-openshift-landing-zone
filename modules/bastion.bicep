@@ -6,7 +6,7 @@ param bastion_service_name string
 param hubVnetName string
 param bastionSubnetName string = 'AzureBastionSubnet'
 
-resource bastion_pip_resource 'Microsoft.Network/publicIPAddresses@2020-11-01' = {
+resource bastion_pip_resource 'Microsoft.Network/publicIPAddresses@2023-09-01' = {
   name: bastion_ip_name
   location: location
   sku: {
@@ -18,7 +18,7 @@ resource bastion_pip_resource 'Microsoft.Network/publicIPAddresses@2020-11-01' =
   }
 }
 
-resource bastion_service_name_resource 'Microsoft.Network/bastionHosts@2020-11-01' = {
+resource bastion_service_name_resource 'Microsoft.Network/bastionHosts@2023-09-01' = {
   name: bastion_service_name
   location: location
   properties: {

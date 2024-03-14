@@ -17,16 +17,16 @@ resource managed_identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023
   name: identityName
 }
 
-resource hubVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: hubVnetName
 }
 
-resource aciSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource aciSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: aciSubnetName
   parent: hubVnet
 }
 
-resource aro_config_container 'Microsoft.ContainerInstance/containerGroups@2021-10-01' = {
+resource aro_config_container 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
   name: aciName
   location: location
   identity: {

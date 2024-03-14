@@ -43,17 +43,17 @@ resource blobPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' exist
   scope: resourceGroup(hubRG)  
 }
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }
 
-resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: computeSubnetName
   parent: spokeVnet
 }
 
-resource log_analytics_workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
+resource log_analytics_workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: lawName
   location: location
   properties: {
@@ -95,7 +95,7 @@ resource amPrivateLinkScopesScopedResource 'Microsoft.Insights/privateLinkScopes
   }
 }
 
-resource lawPrivateEndpoint 'Microsoft.Network/privateEndpoints@2022-09-01' = {
+resource lawPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = {
   name: lawPrivateEndpointName
   location: location
   properties: {
@@ -120,7 +120,7 @@ resource lawPrivateEndpoint 'Microsoft.Network/privateEndpoints@2022-09-01' = {
   ]
 }
 
-resource amPrivateEndpointDnsZoneGroups 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-09-01' = {
+resource amPrivateEndpointDnsZoneGroups 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = {
   parent: lawPrivateEndpoint
   name: '${lawPrivateEndpointGroupName}-default'
   properties: {

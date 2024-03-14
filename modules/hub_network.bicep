@@ -13,7 +13,7 @@ param jumpboxSubnetCidr string
 param aciSubnetName string
 param aciSubnetCidr string
 
-resource utils_vnet 'Microsoft.Network/virtualNetworks@2020-11-01' = {
+resource utils_vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   name: hubVnetName
   location: location
   tags: tags

@@ -1,6 +1,5 @@
-
-# To build locally with podman run the below command
-# podman build --build-arg GITHUB_RUNNER_VERSION=XXXXXX --build-arg HELM_VERSION=XXXXXX -t aro-github-runner:1 -f ./config_runner_container/Dockerfile .
+# To build locally
+# podman build --build-arg GITHUB_RUNNER_VERSION=$(curl -s "https://api.github.com/repos/actions/runner/releases/latest" | jq -r .tag_name | sed 's/^v//') --build-arg HELM_VERSION=$(curl -s "https://api.github.com/repos/helm/helm/releases/latest" | jq -r .tag_name | sed 's/^v//') -t github_runner:local -f ./config_runner_container/Dockerfile .
 
 FROM registry.access.redhat.com/ubi8-minimal:latest
 

@@ -4,16 +4,16 @@ param lbFeIpConfig string
 param computeSubnetName string
 param spokeVnetName string
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
 }
 
-resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: computeSubnetName
   parent: spokeVnet
 }
 
-resource fdPls_resource 'Microsoft.Network/privateLinkServices@2022-09-01' = {
+resource fdPls_resource 'Microsoft.Network/privateLinkServices@2023-09-01' = {
   name: fdPlsName
   location: location
   properties: {

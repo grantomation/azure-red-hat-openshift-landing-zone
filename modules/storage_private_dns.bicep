@@ -3,16 +3,16 @@ param hubVnetName string
 param spokeVnetName string
 param spokeRG string
 
-resource hubVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: hubVnetName
 }
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }
 
-resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2018-09-01' = {
+resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: storagePrivateDnsZoneName
   location: 'global'
 }

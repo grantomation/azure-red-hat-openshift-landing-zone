@@ -1,4 +1,7 @@
 #!/bin/sh
+# To run local to test configuration
+# podman run --name local_github_runner -it -e REPOSITORY=<MY REPOSITORY> -e RUNNER_NAME=<MY POD NAME> -e PAT_GITHUB=<MY GITHUB TOKEN> localhost/github_runner:local
+
 registration_url="https://api.github.com/repos/${REPOSITORY}/actions/runners/registration-token"
 echo "Requesting registration URL at '${registration_url}'"
 

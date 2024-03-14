@@ -13,12 +13,12 @@ param hubRG string
 
 var blobDataContributorRole = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }
 
-resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: computeSubnetName
   parent: spokeVnet
 }
@@ -28,7 +28,7 @@ resource storagePrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' ex
   scope: resourceGroup(hubRG)
 }
 
-resource storageAccount_resource 'Microsoft.Storage/storageAccounts@2022-05-01' = {
+resource storageAccount_resource 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
   sku: {
@@ -68,7 +68,7 @@ resource storageAccount_resource 'Microsoft.Storage/storageAccounts@2022-05-01' 
   }
 }
 
-resource storageAccountBlob 'Microsoft.Storage/storageAccounts/blobServices@2022-05-01' = {
+resource storageAccountBlob 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = {
   parent: storageAccount_resource
   name: 'default'
   properties: {
@@ -94,7 +94,7 @@ resource storageAccountBlob 'Microsoft.Storage/storageAccounts/blobServices@2022
   }
 }
 
-resource storageAccountBlob_resource 'Microsoft.Storage/storageAccounts/blobServices/containers@2022-05-01' = {
+resource storageAccountBlob_resource 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: storageAccountBlob
   name: blobContainerName
   properties: {
@@ -108,7 +108,7 @@ resource storageAccountBlob_resource 'Microsoft.Storage/storageAccounts/blobServ
 }
 
 
-resource storagePe 'Microsoft.Network/privateEndpoints@2022-09-01' = {
+resource storagePe 'Microsoft.Network/privateEndpoints@2023-09-01' = {
   name: storagePrivateEndpointName
   location: location
   properties: {
@@ -129,7 +129,7 @@ resource storagePe 'Microsoft.Network/privateEndpoints@2022-09-01' = {
   }
 }
 
-resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-07-01' = {
+resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = {
   parent: storagePe
   name: '${storagePrivateEndpointGroupName}-PrivateDnsZoneGroup'
   properties: {
