@@ -12,12 +12,12 @@ param keyVaultPrivateDnsZoneName string
 param spokeRG string
 param hubRG string
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }
 
-resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: computeSubnetName
   parent: spokeVnet
 }
@@ -27,7 +27,7 @@ resource keyVaultPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' e
   scope: resourceGroup(hubRG)
 }
 
-resource keyvault_resource 'Microsoft.KeyVault/vaults@2022-07-01' = {
+resource keyvault_resource 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
   properties: {
@@ -111,7 +111,7 @@ resource keyvault_resource 'Microsoft.KeyVault/vaults@2022-07-01' = {
   }
 }
 
-resource keyVaultPe 'Microsoft.Network/privateEndpoints@2022-07-01' = {
+resource keyVaultPe 'Microsoft.Network/privateEndpoints@2023-09-01' = {
   name: keyVaultPrivateEndpointName
   location: location
   properties: {
@@ -132,7 +132,7 @@ resource keyVaultPe 'Microsoft.Network/privateEndpoints@2022-07-01' = {
   }
 }
 
-resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-07-01' = {
+resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = {
   parent: keyVaultPe
   name: '${keyVaultPrivateEndpointGroupName}-PrivateDnsZoneGroup'
   properties: {

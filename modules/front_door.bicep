@@ -4,7 +4,7 @@ param fdSku string
 param lbFeIpConfig string
 param fdPlsId string
 
-resource frontDoor_profile 'Microsoft.Cdn/profiles@2022-11-01-preview' = {
+resource frontDoor_profile 'Microsoft.Cdn/profiles@2023-07-01-preview' = {
   name: frontDoorName
   location: 'Global'
   sku: {
@@ -12,7 +12,7 @@ resource frontDoor_profile 'Microsoft.Cdn/profiles@2022-11-01-preview' = {
   }
 }
 
-resource frontDoor_afd_endpoint 'Microsoft.Cdn/profiles/afdendpoints@2022-11-01-preview' = {
+resource frontDoor_afd_endpoint 'Microsoft.Cdn/profiles/afdEndpoints@2023-07-01-preview' = {
   parent: frontDoor_profile
   name: 'afd-${uniqueString(resourceGroup().id)}'
   location: 'Global'
@@ -22,7 +22,7 @@ resource frontDoor_afd_endpoint 'Microsoft.Cdn/profiles/afdendpoints@2022-11-01-
   }
 }
 
-resource frontDoor_afdLbOriginGroup 'Microsoft.Cdn/profiles/origingroups@2022-11-01-preview' = {
+resource frontDoor_afdLbOriginGroup 'Microsoft.Cdn/profiles/originGroups@2023-07-01-preview' = {
   parent: frontDoor_profile
   name: 'afdLbOriginGroup'
   properties: {
@@ -41,7 +41,7 @@ resource frontDoor_afdLbOriginGroup 'Microsoft.Cdn/profiles/origingroups@2022-11
   }
 }
 
-resource frontDoor_afdLbOrigin 'Microsoft.Cdn/profiles/origingroups/origins@2022-11-01-preview' = {
+resource frontDoor_afdLbOrigin 'Microsoft.Cdn/profiles/originGroups/origins@2023-07-01-preview' = {
   parent: frontDoor_afdLbOriginGroup
   name: 'afdLbOrigin'
   properties: {
@@ -62,7 +62,7 @@ resource frontDoor_afdLbOrigin 'Microsoft.Cdn/profiles/origingroups/origins@2022
   }
 }
 
-resource frontDoor_httpd_httpd_route 'Microsoft.Cdn/profiles/afdendpoints/routes@2022-11-01-preview' = {
+resource frontDoor_httpd_httpd_route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2023-07-01-preview' = {
   parent: frontDoor_afd_endpoint
   name: 'httpd-route'
   properties: {

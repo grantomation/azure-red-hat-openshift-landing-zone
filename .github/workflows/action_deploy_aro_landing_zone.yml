@@ -1,6 +1,11 @@
 name: Deploy Azure ARO Landing Zone
 on: 
   [workflow_dispatch]
+
+permissions:
+    id-token: write
+    contents: read
+
 jobs: 
   identity:
     runs-on: ubuntu-latest
@@ -10,12 +15,14 @@ jobs:
       identityName: ${{ steps.identity.outputs.identityName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: create identity
       uses: azure/arm-deploy@v2
@@ -37,12 +44,14 @@ jobs:
       aciSubnetName: ${{ steps.hub.outputs.aciSubnetName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: hub networking
       uses: azure/arm-deploy@v2
@@ -65,12 +74,14 @@ jobs:
       computeSubnetName: ${{ steps.spoke.outputs.computeSubnetName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
         
     - name: spoke networking
       uses: azure/arm-deploy@v2
@@ -94,12 +105,14 @@ jobs:
       fwPrivateIP: ${{ steps.firewall.outputs.fwPrivateIP }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_firewall
       uses: azure/arm-deploy@v2
@@ -122,12 +135,14 @@ jobs:
       routeTableName: ${{ steps.route_table.outputs.routeTableName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
     
     - name: create_route
       uses: azure/arm-deploy@v2
@@ -148,12 +163,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: hub_peering
       uses: azure/arm-deploy@v2
@@ -190,12 +207,14 @@ jobs:
       acrSkuName: ${{ steps.acr.outputs.acrSkuName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_acr
       uses: azure/arm-deploy@v2
@@ -218,12 +237,14 @@ jobs:
       clusterName: ${{ steps.aro.outputs.clusterName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: Get latest version of ARO
       run: | 
@@ -244,12 +265,10 @@ jobs:
           ./action_params/aro.parameters.json 
           pullSecret="${{ secrets.PULL_SECRET }}"
           location="${{ vars.LOCATION }}"
-          aadClientId="${{ secrets.AAD_CLIENT_ID }}"
+          aadClientId="${{ secrets.AAD_APP_CLIENT_ID }}"
           aadClientSecret="${{ secrets.AAD_CLIENT_SECRET }}"
-          aadObjectId="${{ secrets.AAD_OBJECT_ID }}"
           rpObjectId="${{ secrets.ARO_RP_OB_ID }}"
           spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
-          addSpRoleAssignment='no'
           openshiftVersion="${{ env.ARO_LATEST }}"
         deploymentName: aro-github-actions
 
@@ -258,29 +277,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
-    - name: Get ACR token
+    - name: Get ACR token and software versions
       run: |      
           ACR_TOKEN="$(az acr login --name ${{ needs.deploy_acr.outputs.acrName }} --expose-token --query accessToken -o tsv)"
           echo "ACR_TOKEN=${ACR_TOKEN}" >> $GITHUB_ENV
+
+          HELM_VERSION="$(curl -s "https://api.github.com/repos/helm/helm/releases/latest" | jq -r .tag_name | sed 's/^v//')"
+          echo "HELM_VERSION=${HELM_VERSION}" >> $GITHUB_ENV
+
+          GITHUB_RUNNER_VERSION="$(curl -s "https://api.github.com/repos/actions/runner/releases/latest" | jq -r .tag_name | sed 's/^v//')"
+          echo "GITHUB_RUNNER_VERSION=${GITHUB_RUNNER_VERSION}" >> $GITHUB_ENV
       shell: bash
 
-    - name: login to acr
-      uses: azure/docker-login@v1
-      with: 
-        login-server: ${{ needs.deploy_acr.outputs.loginServer }}
+    - name: Login to ACR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ needs.deploy_acr.outputs.loginServer }}
         username: ${{ vars.ACR_USERNAME }}
         password: ${{ env.ACR_TOKEN }}
 
     - name: build and push container
       run: | 
-        docker build . -f ./config_runner_container/Dockerfile -t ${{ needs.deploy_acr.outputs.loginServer }}/${{ vars.CONTAINER_BUILD_NAME }} --build-arg GITHUB_RUNNER_VERSION=${{ vars.GH_RUNNER_VERSION }} --build-arg HELM_VERSION=${{ vars.HELM_VERSION }}
+        docker build . -f ./config_runner_container/Dockerfile -t ${{ needs.deploy_acr.outputs.loginServer }}/${{ vars.CONTAINER_BUILD_NAME }} --build-arg GITHUB_RUNNER_VERSION=${{ env.GITHUB_RUNNER_VERSION }} --build-arg HELM_VERSION=${{ env.HELM_VERSION }}
         docker push ${{ needs.deploy_acr.outputs.loginServer }}/${{ vars.CONTAINER_BUILD_NAME }}
 
   secure_acr:
@@ -290,12 +317,14 @@ jobs:
       acrPrivateDnsZoneName: ${{ steps.acr_private_dns.outputs.acrPrivateDnsZoneName }}
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
       - name: Deploy private DNS for ACR
         uses: azure/arm-deploy@v2
@@ -360,12 +389,14 @@ jobs:
       containerName: ${{ steps.aci_keyvault.outputs.containerName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_aci_keyvault
       uses: azure/arm-deploy@v2
@@ -396,12 +427,14 @@ jobs:
       keyVaultUri: ${{ steps.keyvault.outputs.keyVaultUri }}
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
       - name: Deploy private DNS for Keyvault
         uses: azure/arm-deploy@v2
@@ -433,7 +466,7 @@ jobs:
               spokeVnetName=${{ needs.spoke_networking.outputs.spokeVnetName }}
               computeSubnetName=${{ needs.spoke_networking.outputs.computeSubnetName }}              
               identityObjectId=${{ needs.identity.outputs.identityObjectId }}
-              aadObjectId=${{ secrets.AAD_OBJECT_ID }}
+              aadObjectId=${{ secrets.AAD_SP_OBJECT_ID }}
               spokeRG="${{ vars.SPOKE_RG }}"
               hubRG="${{ vars.HUB_RG }}"
           deploymentName: keyvault-github-actions
@@ -448,12 +481,14 @@ jobs:
       blobEndpoint: ${{ steps.secure_storage.outputs.blobEndpoint }}
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
       - name: Deploy private DNS for Storage
         uses: azure/arm-deploy@v2
@@ -484,7 +519,7 @@ jobs:
               spokeVnetName="${{ needs.spoke_networking.outputs.spokeVnetName }}"
               computeSubnetName="${{ needs.spoke_networking.outputs.computeSubnetName }}"
               storagePrivateDnsZoneName=${{ steps.storage_private_dns.outputs.storagePrivateDnsZoneName }}
-              aadObjectId=${{ secrets.AAD_OBJECT_ID }}
+              aadObjectId=${{ secrets.AAD_SP_OBJECT_ID }}
               identityObjectId="${{ needs.identity.outputs.identityObjectId }}"
               spokeRG="${{ vars.SPOKE_RG }}"
               hubRG="${{ vars.HUB_RG }}"
@@ -502,13 +537,15 @@ jobs:
       lawName: ${{ steps.law.outputs.lawName }}
     steps:
       - name: checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: azure login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
+          client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
+          
       - name: Deploy DNS for log analytics workspace
         uses: azure/arm-deploy@v2
         id: law_private_dns
@@ -555,12 +592,14 @@ jobs:
       tarName: ${{ steps.write.outputs.tarName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: write secrets to keyvault, file to storage
       id: write
@@ -572,7 +611,7 @@ jobs:
 
         az keyvault secret set --name azureSubscription --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ vars.AZURE_SUBSCRIPTION }}
         az keyvault secret set --name location --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ vars.LOCATION }}
-        az keyvault secret set --name aadClientId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_CLIENT_ID }}
+        az keyvault secret set --name aadClientId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_APP_CLIENT_ID }}
         az keyvault secret set --name aadClientSecret --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_CLIENT_SECRET }}
         az keyvault secret set --name tenantId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.TENANT_ID }}
         az keyvault secret set --name aadAdminGroupId --vault-name ${{ needs.deploy_secure_vault.outputs.keyVaultName }} --value ${{ secrets.AAD_ADMIN_GROUP_ID }}
@@ -596,12 +635,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_bastion
       uses: azure/arm-deploy@v2
@@ -623,12 +664,14 @@ jobs:
       containerName: ${{ steps.aci_jumpbox.outputs.containerName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_aci_jumpbox
       uses: azure/arm-deploy@v2
@@ -655,12 +698,14 @@ jobs:
     runs-on: self-hosted
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_jumpbox
       uses: azure/arm-deploy@v2
@@ -686,12 +731,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: Remove Containers
       run: |
@@ -708,12 +755,14 @@ jobs:
       frontDoorName: ${{ steps.front_door.outputs.frontDoorName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: Get details from ARO loadbalancer
       run: |
@@ -781,12 +830,14 @@ jobs:
       aciAroName: ${{ steps.aci_aro.outputs.containerName }}
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: deploy_aci_aro
       uses: azure/arm-deploy@v2
@@ -814,12 +865,14 @@ jobs:
     runs-on: self-hosted
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: Configure ARO cluster
       run: |
@@ -830,7 +883,7 @@ jobs:
         # GRANT'S CUSTOM KV CALLS
         AZURE_SUBSCRIPTION=$(curl $KV_URI/secrets/azureSubscription/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
         LOCATION=$(curl $KV_URI/secrets/location/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
-        AAD_CLIENT_ID=$(curl $KV_URI/secrets/aadClientId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
+        AAD_APP_CLIENT_ID=$(curl $KV_URI/secrets/aadClientId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
         AAD_CLIENT_SECRET=$(curl $KV_URI/secrets/aadClientSecret/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
         TENANT_ID=$(curl $KV_URI/secrets/tenantId/?api-version=2016-10-01 -H "Authorization: Bearer $VAULT_TOKEN" | jq .value | tr -d '"')
         IDP_NAME=AAD
@@ -846,7 +899,7 @@ jobs:
       
         # Configure Active Directory (service principal has already been setup)
         B64=$(echo -n $AAD_CLIENT_SECRET | base64)
-        oc process -f openshift_configuration/aad.yaml -p TENANT_ID=$TENANT_ID -p IDP_NAME=$IDP_NAME -p AAD_CLIENT_ID=$AAD_CLIENT_ID -p AAD_CLIENT_SECRET=$B64 -p AAD_GROUP_ID=$GROUP_ID | oc apply -f - --namespace=openshift-config
+        oc process -f openshift_configuration/aad.yaml -p TENANT_ID=$TENANT_ID -p IDP_NAME=$IDP_NAME -p AAD_APP_CLIENT_ID=$AAD_APP_CLIENT_ID -p AAD_CLIENT_SECRET=$B64 -p AAD_GROUP_ID=$GROUP_ID | oc apply -f - --namespace=openshift-config
 
         # Install web terminal operator
         oc create -f openshift_configuration/web_terminal_operator.yaml
@@ -860,6 +913,7 @@ jobs:
         oc adm new-project openshift-logging
         oc create -f openshift_configuration/rh_openshift_logging_operatorgroup.yaml
         oc create -f openshift_configuration/rh_openshift_logging_subscription.yaml
+        
         oc adm new-project openshift-operators-redhat
         oc create -f openshift_configuration/rh_elasticsearch_operatorgroup.yaml
         oc create -f openshift_configuration/rh_elasticsearch_subscription.yaml
@@ -874,7 +928,7 @@ jobs:
 
         WORKSPACE_ID=$(az monitor log-analytics workspace show -g ${{ vars.SERVICES_RG }} -n ${{ needs.deploy_secure_log_analytics_workspace.outputs.lawName }} --query customerId -o tsv)
         SHARED_KEY=$(az monitor log-analytics workspace get-shared-keys -g ${{ vars.SERVICES_RG }} -n ${{ needs.deploy_secure_log_analytics_workspace.outputs.lawName }} --query primarySharedKey -o tsv)
-        oc create secret generic aro-clf-law --from-literal=SharedKey=${SHARED_KEY} --from-literal=WorkspaceId=${WORKSPACE_ID}
+        oc create secret generic aro-clf-law --from-literal=SharedKey=${SHARED_KEY} --from-literal=WorkspaceId=${WORKSPACE_ID} -n cluster-log-forwarder
 
         oc process aro-cluster-log-forward | oc create -f -
       shell: bash

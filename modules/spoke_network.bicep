@@ -9,12 +9,12 @@ param computeSubnetName string
 param routeTableName string
 param spoke_rg string
 
-resource routeTable_resource 'Microsoft.Network/routeTables@2022-01-01' existing = {
+resource routeTable_resource 'Microsoft.Network/routeTables@2023-09-01' existing = {
   name: routeTableName
   scope: resourceGroup(spoke_rg)
 }
 
-resource cluster_vnet 'Microsoft.Network/virtualNetworks@2020-05-01' = {
+resource cluster_vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
   name: spokeVnetName
   location: location
   tags: tags

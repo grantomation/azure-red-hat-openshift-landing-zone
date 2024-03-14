@@ -2,7 +2,7 @@ param location string
 param acrName string
 param acrSkuName string
 
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = {
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
   sku: {
@@ -28,13 +28,6 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-pr
       exportPolicy: {
         status: 'enabled'
       }
-      azureADAuthenticationAsArmPolicy: {
-        status: 'enabled'
-      }
-      softDeletePolicy: {
-        retentionDays: 7
-        status: 'disabled'
-      }
     }
     encryption: {
       status: 'disabled'
@@ -42,6 +35,5 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-pr
     dataEndpointEnabled: false
     publicNetworkAccess: 'Disabled'
     zoneRedundancy: 'Disabled'
-    anonymousPullEnabled: false
   }
 }

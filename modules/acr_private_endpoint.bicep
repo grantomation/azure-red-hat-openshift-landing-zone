@@ -8,17 +8,17 @@ param spokeVnetName string
 param computeSubnetName string
 param hubRG string
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }
 
-resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource computeSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: computeSubnetName
   parent: spokeVnet
 }
 
-resource acr 'Microsoft.ContainerRegistry/registries@2023-01-01-preview' existing = {
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
   name: acrName
 }
 
@@ -27,7 +27,7 @@ resource acrPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' existi
   scope: resourceGroup(hubRG)
 }
 
-resource containerRegistryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2022-01-01' = {
+resource containerRegistryPrivateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = {
   name: acrPrivateEndpointName
   location: location
   properties: {
@@ -48,7 +48,7 @@ resource containerRegistryPrivateEndpoint 'Microsoft.Network/privateEndpoints@20
   }
 }
 
-resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2022-01-01' = {
+resource privateEndpointDns 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-09-01' = {
   parent: containerRegistryPrivateEndpoint
   name: '${acrPrivateEndpointGroupName}-PrivateDnsZoneGroup'
   properties:{

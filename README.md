@@ -33,11 +33,11 @@ Configuring resources which are restricted to private networks can be quite prob
 
 * Copy this repo to a private repo of your own
 * Create a Github personal access token
-* Create an Azure Service principal 
+* Create an Azure Application Registration/Service principal 
 * Create 3 resource groups and grant the Azure Service Principal `Contributor` and `User Access Administration` permissions scoped to these resource groups.
 * Create Github repository secrets and variables (use the helper script to make it easy)
 * [Run the Github actions workflow](./docs/workflow_details.md)
-* Log into Azure Red Hat OpenShift using your Azure Active Directory account
+* Log into Azure Red Hat OpenShift using your Azure EntraID Directory account
 
 # Pre-requisites
 
@@ -65,8 +65,8 @@ The Github Personal access token is injected as a secure environment variable in
   * Github.com, SSH, \<Select SSH Key\>, Paste an authentication token
   * Insert the PAT as a Github secret as per the "secrets" table below "PAT_Github"
 
-## Create Active Directory Security Group
-Create an Active Directory Security Group which will contain the users that will be administrators for Azure Red Hat OpenShift (ARO). You will need to place the 
+## Create EntraID Security Group
+Create an EntraID Security Group which will contain the users that will be administrators for Azure Red Hat OpenShift (ARO). You will need to place the 
 
 ```console
 export SG_NAME="<insert name of security group for openshift administrators>"
@@ -81,31 +81,59 @@ For an Azure Red Hat OpenShift (ARO) private cluster deployment, a Red Hat pull 
 
 Place the Red Hat pull secret in a file called `pull-secret.json` at the root of this repo to ensure that the helper scripts can read it and write it to Github repository secrets for use in the Github actions workflow.
 
-## Create an Azure Service Principal
+## Create an Azure App Registration/Service Principal
 
-For this repo an Azure service principal is required. It has 3 uses;
+For this repo an Azure app registration/service principal is required. It has a few uses;
 
-1. *Deploying ARO* - A resource principal is needed to provide secure access to Azure resources that are required to deploy and manage an ARO cluster. A resource principal is essentially an identity for your ARO cluster that allows it to access and manage Azure resources such as virtual networks, storage accounts, and other resources required by the cluster. By creating a resource principal, you can grant your ARO cluster the necessary permissions to access and manage Azure resources without giving it full access to your entire Azure subscription.
+1. *Deploying ARO* - An app registration/service principal is needed to provide secure access to Azure resources that are required to deploy and manage an ARO cluster. A app registration/service principal is essentially an identity for your ARO cluster that allows it to access and manage Azure resources such as virtual networks, storage accounts, and other resources required by the cluster. By creating an app registration/service principal, you can grant your ARO cluster the necessary permissions to access and manage Azure resources without giving it full access to your entire Azure subscription.
 
 2. *Deploy Resources to Azure using Github actions* - The Azure service principal is used by Github Actions to authenticate and authorize the deployment of your code to Azure resources. This allows Github Actions to perform actions such as creating or updating resources, deploying code to virtual machines, and more. The permissions that are granted to the service principal are `Contributor` and `User access admin` scoped to the three resource groups that are created.
 - `Contributor` permits resource creation
 - `User access admin` permits adding the Azure Red Hat OpenShift Resource Provider the appropriate permissions during the Azure installation.
 
-3. *Credentials for ARO to use AAD as identity provider* - During the configuration of the OpenShift identity provider the Azure service principal is used.
+3. *OIDC Login for GitHub Actions* With OpenID Connect (OIDC), you can configure your workflow to request a short-lived access token directly from the cloud provider. Your cloud provider also needs to support OIDC on their end, and you must configure a trust relationship that controls which workflows are able to request the access tokens. Providers that currently support OIDC include Amazon Web Services, Azure, Google Cloud Platform, and HashiCorp Vault, among others.
 
-Create a service principal and give it the contributor role scoped to a resource group that you are going to use. For the first run of this github actions repository you need to create a service principal and need to assign it a scope. Following the below instructions will create the spoke resource group here manually in order to enable the creation of the service principal. If you keep the service principal for future runs of this github actions workflow then you will not need to run these steps again - as the service principal's details are already established.
+4. *Credentials for ARO to use Entra as identity provider* - During the configuration of the OpenShift identity provider the Azure service principal is used.
+
+Set the name for the EntraID App Registration/Service Principal
 
 ```console
-export LOCATION=<your desired azure region>
-export AZURE_SUBSCRIPTION=$(az account show --query id -o tsv)
-export SP_NAME="<your desired name for the service principal>"
-export SPOKE_RG="<the name for the spoke resource group>"
+export DISPLAYNAME="<Desired Entra App Registration/Service Principal name>"
+```
+Now create the app registration and the service principal. We will also start to configure
+```
+az ad app create --display-name=$DISPLAYNAME --sign-in-audience AzureADMyOrg --optional-claims "{\"idToken\":[{\"name\":\"preferred_username\",\"source\": null,\"essential\": false,\"additionalProperties\":[]},{\"name\":\"email\",\"source\": null,\"essential\": false,\"additionalProperties\": []}]}"
 
-az group create --name $SPOKE_RG --location $LOCATION
-az ad sp create-for-rbac -n $SP_NAME --role contributor --sdk-auth --scopes "/subscriptions/$AZURE_SUBSCRIPTION/resourceGroups/$SPOKE_RG" > sp.txt
+export AAD_APP_CLIENT_ID=$(az ad app list --filter "displayname eq '$DISPLAYNAME'" --query '[].appId' -o tsv)
+echo $AAD_APP_CLIENT_ID
 
-export AAD_CLIENT_ID=$(az ad sp list --show-mine --query "[?displayName == '$SP_NAME'].appId" -o tsv)
+az ad sp create --id $AAD_APP_CLIENT_ID
 
+```
+
+- Now create a password for the App Registration / Service Principal
+```
+export AAD_CLIENT_SECRET=$(az ad app credential reset --id $AAD_APP_CLIENT_ID --query password -o tsv)
+```
+
+
+- Now run gh_secrets_create.sh to populate github values (YOU WILL NEED TO READ/CREATE GITHUB PERSONAL ACCESS TOKEN FIRST)
+```
+gh api user -q .login
+gh auth logout
+gh auth login
+gh api user -q .login 
+```
+Select the following options
+- Github.com
+- HTTPS
+- Paste your authentication token
+
+You should see output like the following
+```
+- gh config set -h github.com git_protocol https
+✓ Configured git protocol
+✓ Logged in as grantomation
 ```
 
 ## Set Helper Script Variables
@@ -113,22 +141,21 @@ Set the following variables in the file `helper_vars.sh` to ensure that the help
 
 | Helper Var Name | Description |
 | --- | --- | 
-| SP_FILE | File name which stores the service principal credentials. It should be `sp.txt` if you followed the commands above | 
-| SP_NAME | Name of the service principal that you created above | 
-| GH_REPOSITORY | The private github repository you are running this code from. In `github-owner/repository` format |
+| DISPLAYNAME | The name for the App registration/service principal that you created above. | 
+| GH_REPO | Your copy of this github repository (private) where you are running this code from. |
+| GH_ORGANISATION | Your github username (or organisation). |
+| GH_BRANCH | Set the branch where you will run the github actions from (default `master`)  | 
 | PAT_GITHUB | The Personal Access Token for Github that you created above |
 | LOCATION | Azure Region where cloud resources will be deployed | 
 | HUB_RG | The name of the resource group which will store Network Hub services such as Azure Firewall |
 | SPOKE_RG | The name of the resource group which will store Azure Red Hat OpenShift (ARO) components |
 | SERVICES_RG | The name of the resource group which will store services such as keyvault and ACR |
-| AAD_ADMIN_GROUP_ID | The ID of the Azure Active Directory Security Group. Get ID by running the following command `az ad group show -g <AAD GROUP NAME> --query id -o tsv` | 
-| GH_RUNNER_VERSION | The latest github runner version from https://github.com/actions/runner/releases/ (omit the "v" from the version. e.g. GH_RUNNER_VERSION="2.304.0" |
-| HELM_VERSION | The latest helm version from https://github.com/helm/helm/releases (omit the "v" from the version. e.g. HELM_VERSION="3.12.0" |
+| AAD_ADMIN_GROUP_ID | The ID of the Azure EntraId Security Group. Get ID by running the following command `az ad group show -g <AAD GROUP NAME> --query id -o tsv` | 
 | JUMPBOX_ADMIN_USER | The name of the Jumpbox Virtual Machine Admin User | 
 | JUMPBOX_ADMIN_PWD | The password for the Jumpbox Virtual Machine Admin User | 
 | CONTAINER_BUILD_NAME | The name and tag for the Github runner container that is build default `aro-github-runner:1` | 
 
-All other variables in this file will be determined via lookup commands.
+All other variables in this file will be determined via lookup commands using `az` cli
 
 ## Set Parameters and Variables for your environment
 
@@ -159,7 +186,6 @@ az provider register -n Microsoft.Insights
 
 ```
 
-
 ## Set the appropriate quota for your environment
 
 By default ARO uses a minimum 40 cores and this will need to be accounted for in the Azure Quota. 
@@ -178,19 +204,21 @@ Ensure that you are logged in to the Azure CLI with a user that has appropriate 
 
 ```console
 chmod +x helper_vars.sh
-
-
+chmod +x gh_secrets_create.sh
 
 ./gh_secrets_create.sh
 
-
 ```
 
-
 ### Run Resource Group creation
-Prior to running the workflow a user with the appropriate permissions must create the initial resource groups and scope the service principal permissions to them.
+Prior to running the workflow a user with the appropriate permissions must create the initial resource groups with correct permissions for the App registration/service principal.
 
-Run `./lz_rg_create.sh` to perform these actions for you. You will need to change the variables at the top of the file to suit your environment.
+Run `./lz_rg_create.sh` to perform these actions for you.
+
+```
+chmod +x lz_rg_create.sh
+./lz_rg_create.sh
+```
 
 # Run the Github actions Azure Red Hat OpenShift Landing Zone workflow
 

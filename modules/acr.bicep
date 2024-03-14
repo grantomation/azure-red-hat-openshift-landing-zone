@@ -4,7 +4,7 @@ param acrSkuName string
 param principalId string
 
 
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = {
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
   sku: {
@@ -31,13 +31,6 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-pr
       exportPolicy: {
         status: 'enabled'
       }
-      azureADAuthenticationAsArmPolicy: {
-        status: 'enabled'
-      }
-      softDeletePolicy: {
-        retentionDays: 7
-        status: 'disabled'
-      }
     }
     encryption: {
       status: 'disabled'
@@ -46,11 +39,10 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2022-02-01-pr
     publicNetworkAccess: 'Enabled'
     networkRuleBypassOptions: 'AzureServices'
     zoneRedundancy: 'Disabled'
-    anonymousPullEnabled: false
   }
 }
 
-resource registries_scope_repositories_admin 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-01-01-preview' = {
+resource registries_scope_repositories_admin 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-11-01-preview' = {
   parent: containerRegistry
   name: '_repositories_admin'
   properties: {
@@ -65,7 +57,7 @@ resource registries_scope_repositories_admin 'Microsoft.ContainerRegistry/regist
   }
 }
 
-resource registries_scope_repositories_pull 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-01-01-preview' = {
+resource registries_scope_repositories_pull 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-11-01-preview' = {
   parent: containerRegistry
   name: '_repositories_pull'
   properties: {
@@ -76,7 +68,7 @@ resource registries_scope_repositories_pull 'Microsoft.ContainerRegistry/registr
   }
 }
 
-resource registries_scope_repositories_push 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-01-01-preview' = {
+resource registries_scope_repositories_push 'Microsoft.ContainerRegistry/registries/scopeMaps@2023-11-01-preview' = {
   parent: containerRegistry
   name: '_repositories_push'
   properties: {

@@ -18,24 +18,28 @@ objects:
     name: cluster
   spec:
     identityProviders:
-    - mappingMethod: claim
-      name: ${IDP_NAME}
+    - name: ${IDP_NAME}
+      mappingMethod: claim
+      type: OpenID
       openID:
+        clientID: ${AAD_APP_CLIENT_ID}
+        clientSecret:
+          name: openid-client-secret
+        extraScopes:
+        - email
+        - profile
+        extraAuthorizeParameters:
+          include_granted_scopes: "true"
         claims:
+          preferredUsername:
+          - preferred_username
+          name:
+          - name
           email:
           - email
           groups:
-          - groups
-          name:
-          - name
-          preferredUsername:
-          - upn
-        clientID: ${AAD_CLIENT_ID}
-        clientSecret:
-          name: openid-client-secret
-        extraScopes: []
-        issuer: https://login.microsoftonline.com/${TENANT_ID}
-      type: OpenID
+           - groups
+        issuer: https://login.microsoftonline.com/${TENANT_ID}/v2.0
 
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: ClusterRoleBinding
@@ -48,7 +52,7 @@ objects:
   subjects:
   - apiGroup: rbac.authorization.k8s.io
     kind: Group
-    name: '["${AAD_GROUP_ID}"]'
+    name: '${AAD_GROUP_ID}'
    
 parameters:
 - description: The name of the AAD tenant to use
@@ -64,7 +68,7 @@ parameters:
 
 - description: AAD Client ID for authentication
   displayName: AAD Client ID
-  name: AAD_CLIENT_ID
+  name: AAD_APP_CLIENT_ID
   required: true
 
 - description: AAD Client Secret

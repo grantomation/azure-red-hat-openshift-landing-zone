@@ -3,11 +3,11 @@ param spokeVnetName string
 param hubVnetName string
 param spokeRG string
 
-resource hubVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: hubVnetName
 }
 
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource spokeVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: spokeVnetName
   scope: resourceGroup(spokeRG)
 }

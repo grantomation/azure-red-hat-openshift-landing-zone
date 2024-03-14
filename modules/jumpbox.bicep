@@ -23,16 +23,16 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
   name: identityName
 }
 
-resource hubVnet 'Microsoft.Network/virtualNetworks@2022-09-01' existing = {
+resource hubVnet 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: hubVnetName
 }
 
-resource jumpboxSubnet 'Microsoft.Network/virtualNetworks/subnets@2022-09-01' existing = {
+resource jumpboxSubnet 'Microsoft.Network/virtualNetworks/subnets@2023-09-01' existing = {
   name: jumpboxSubnetName
   parent: hubVnet
 }
 
-resource networkSecurityGroup_resource 'Microsoft.Network/networkSecurityGroups@2020-11-01' = {
+resource networkSecurityGroup_resource 'Microsoft.Network/networkSecurityGroups@2023-09-01' = {
   name: nsg_name
   location: location
   properties: {
@@ -40,7 +40,7 @@ resource networkSecurityGroup_resource 'Microsoft.Network/networkSecurityGroups@
   }
 }
 
-resource networkInterface_resource 'Microsoft.Network/networkInterfaces@2020-11-01' = {
+resource networkInterface_resource 'Microsoft.Network/networkInterfaces@2023-09-01' = {
   name: nic_name
   location: location
   properties: {
@@ -66,7 +66,7 @@ resource networkInterface_resource 'Microsoft.Network/networkInterfaces@2020-11-
   }
 }
 
-resource jumpbox_resource 'Microsoft.Compute/virtualMachines@2021-03-01' = {
+resource jumpbox_resource 'Microsoft.Compute/virtualMachines@2023-09-01' = {
   name: jumpbox_vm_name
   location: location
   identity: {
@@ -114,7 +114,7 @@ resource jumpbox_resource 'Microsoft.Compute/virtualMachines@2021-03-01' = {
   }
 }
 
-resource customScriptExtension 'Microsoft.Compute/virtualMachines/extensions@2022-03-01' = {
+resource customScriptExtension 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
   parent: jumpbox_resource
   name: 'CustomScriptExtension'
   location: location

@@ -10,7 +10,7 @@ param azfw_enable_dns string
 param hubVnetName string
 param fwPrivateIP string
 
-resource fw_pip_resource 'Microsoft.Network/publicIPAddresses@2020-11-01' = {
+resource fw_pip_resource 'Microsoft.Network/publicIPAddresses@2023-09-01' = {
   name: fw_pip_name
   location: location
   sku: {
@@ -23,11 +23,11 @@ resource fw_pip_resource 'Microsoft.Network/publicIPAddresses@2020-11-01' = {
   }
 }
 
-resource hub_vnet_resource 'Microsoft.Network/virtualNetworks@2021-08-01' existing = {
+resource hub_vnet_resource 'Microsoft.Network/virtualNetworks@2023-09-01' existing = {
   name: hubVnetName
 }
 
-resource azfw_resource 'Microsoft.Network/azureFirewalls@2022-01-01' = {
+resource azfw_resource 'Microsoft.Network/azureFirewalls@2023-09-01' = {
   name: azfw_name
   location: location
   properties: {

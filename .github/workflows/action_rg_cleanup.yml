@@ -6,12 +6,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: hub cleanup
       uses: azure/arm-deploy@v2
@@ -27,12 +29,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
     - name: spoke cleanup
       uses: azure/arm-deploy@v2
@@ -44,18 +48,20 @@ jobs:
         deploymentMode: Complete
         deploymentName: spoke-resource-cleanup-github
 
-  cleanup_resources:
+  cleanup_services:
     runs-on: ubuntu-latest
     steps:
     - name: checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: azure login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AAD_APP_CLIENT_ID }}
+        tenant-id: ${{ secrets.TENANT_ID }}
+        subscription-id: ${{ vars.AZURE_SUBSCRIPTION }}
 
-    - name: spoke cleanup
+    - name: services cleanup
       uses: azure/arm-deploy@v2
       with:
         scope: resourcegroup
