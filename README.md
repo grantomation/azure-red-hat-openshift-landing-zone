@@ -47,8 +47,11 @@ Configuring resources which are restricted to private networks can be quite prob
 * curl
 * gh command line
 
-## Make a copy of this repo on Github
-Make a copy of this repo to your Github account, ensure that it is a private repo, this wil prevent accidental leaking of secrets and avoid anyone from the public running the Github actions workflow.
+## Make a copy of this repo on Github using the Template feature
+
+![GitHub Template](./graphics/template.png)
+
+Make a copy of this repo to your Github account using the template feature, ensure that it is a private repo, this wil prevent accidental leaking of secrets and avoid anyone from the public running the Github actions workflow.
 
 > **Warning** 
 > Please be careful about how you store secrets. It is advised to use a private repo to ensure that there is a less chance of private data exposure.
@@ -100,7 +103,7 @@ Set the name for the EntraID App Registration/Service Principal
 ```console
 export DISPLAYNAME="<Desired Entra App Registration/Service Principal name>"
 ```
-Now create the app registration and the service principal. We will also start to configure
+Now create the app registration and the service principal. We will also start to configure this object for EntraID Group claims on OpenShift.
 ```
 az ad app create --display-name=$DISPLAYNAME --sign-in-audience AzureADMyOrg --optional-claims "{\"idToken\":[{\"name\":\"preferred_username\",\"source\": null,\"essential\": false,\"additionalProperties\":[]},{\"name\":\"email\",\"source\": null,\"essential\": false,\"additionalProperties\": []}]}"
 
