@@ -55,7 +55,37 @@ resource azfw_resource 'Microsoft.Network/azureFirewalls@2023-09-01' = {
         }
       }
     ]
-    networkRuleCollections: []
+    networkRuleCollections: [
+      {
+        name: 'Allow_Microsoft_Graph'
+        properties: {
+          priority: 100
+          action: {
+            type: 'Allow'
+          }
+          rules: [
+            {
+              name: 'Microsoft_Graph'
+              protocols: [
+                'Any'
+              ]
+              sourceAddresses: [
+                '*'
+              ]
+              destinationAddresses: []
+              sourceIpGroups: []
+              destinationIpGroups: []
+              destinationFqdns: [
+                'graph.microsoft.com'
+              ]
+              destinationPorts: [
+                '*'
+              ]
+            }
+          ]
+        }
+      }
+    ]
     applicationRuleCollections: [
       {
         name: 'ARO'
