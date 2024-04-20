@@ -11,6 +11,7 @@ param identityName string
 param ghRepository string
 param ghRunnerName string
 param ghPersonalToken string
+param keyVaultUri string
 
 resource managed_identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
   name: identityName
@@ -61,6 +62,10 @@ resource aro_config_container 'Microsoft.ContainerInstance/containerGroups@2023-
                 name: 'PAT_GITHUB'
                 secureValue: ghPersonalToken
             }
+            {
+              name: 'KV_URI'
+              secureValue: keyVaultUri
+          }
           ]
           resources: {
             requests: {
